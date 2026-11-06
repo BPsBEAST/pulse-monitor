@@ -240,3 +240,18 @@ body{background:radial-gradient(ellipse at 78% -25%,#17213e 0,transparent 52%),#
  .diag-header{align-items:start}.diag-header h2{font-size:21px}
 }
 @media(max-width:390px){.top-search{max-width:100px}.nav{min-width:48px}.dns-grid{grid-template-columns:1fr}.diagnostic-top-grid{grid-template-columns:1fr}.diagnostic-top-grid>.diagnostic-summary:last-child{grid-column:auto}}
+
+/* Passive network ownership lookup */
+.ip-lookup-panel{margin-top:28px;border-color:#34455d}
+.ip-lookup-panel h2{font-size:20px}
+.ip-lookup-panel .eyebrow{color:#89c9ff}
+.diag-ip-result{margin-top:20px;padding:18px;background:#1c2740;border:1px solid #334665;border-radius:11px}
+.diag-ip-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.diag-ip-heading h3{font-size:22px;overflow-wrap:anywhere;margin:0}
+.diag-ip-heading .eyebrow{font-size:10px;margin-bottom:8px}
+.ip-info-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-bottom:16px}
+.ip-info-item{background:#151e31;padding:13px;border:1px solid #2c3b56;border-radius:9px;min-width:0}
+.ip-info-item span{display:block;color:#859ab3;font-size:10px;margin-bottom:7px}
+.ip-info-item strong{display:block;color:#e9f3fd;font-size:13px;overflow-wrap:anywhere}
+.diag-ip-result>.small{margin:0}
+@media(max-width:720px){.ip-info-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.diag-ip-heading h3{font-size:18px}}
