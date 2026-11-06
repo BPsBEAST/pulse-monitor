@@ -21,8 +21,8 @@ jobs:
           ORIGIN="https://bpsbeast.github.io"
           echo "Checking the live PULSE Worker (only publicly documented example targets)"
           fail=0
-          for route in "/health" "/dns-debug" "/check?url=https%3A%2F%2Fexample.com%2F" "/ip-info?ip=1.1.1.1"; do
-            echo "::group::Endpoint ${route%%\?*}"
+          for route in "/health" "/check?url=https%3A%2F%2Fexample.com%2F" "/check?url=https%3A%2F%2Fformacao.inem.pt%2F" "/ip-info?ip=1.1.1.1"; do
+            echo "::group::Request $route"
             tmp=$(mktemp)
             status=$(curl -sS --max-time 18 -H "Origin: $ORIGIN" -H "Accept: application/json" -o "$tmp" -w "%{http_code}" "$API$route" || true)
             echo "HTTP status: $status"
@@ -32,9 +32,9 @@ jobs:
               echo "::error::Endpoint ${route%%\?*} returned $status (check Cloudflare deployment)"
               fail=1
             fi
-            if ! grep -q '"status"\|"ip"\|"providers"' "$tmp"; then
+            if ! grep -q '"status"\|"ip"' "$tmp"; then
               echo "::error::Unexpected endpoint response"
-              exit 1
+              fail=1
             fi
             rm "$tmp"
             echo "::endgroup::"
