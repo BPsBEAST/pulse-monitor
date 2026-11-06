@@ -113,3 +113,30 @@ test("private IP lookups are blocked before external queries",async()=>{
   assert.equal(response.status,400,ip);
  }
 });
+
+test("health endpoint identifies the deployed version",async()=>{
+ const r=await worker.fetch(makeRequest("https://pulse-monitor.example.workers.dev/health"),env);
+ assert.equal(r.status,200);
+ const data=await r.json();
+ assert.equal(data.service,"PULSE");assert.equal(data.version,"0.7");
+});
+test("public IP info works using Google DNS JSON provider",async()=>{
+ const saved=globalThis.fetch;
+ const calls=[];
+ globalThis.fetch=async url=>{
+  calls.push(String(url));
+  if(!String(url).startsWith("https://dns.google/resolve"))throw Error("Only Google DNS should be queried");
+  const name=new URL(url).searchParams.get("name");
+  const record=name.includes("origin.asn.cymru.com")
+    ?'"13335 | 1.1.1.0/24 | AU | apnic | 2011-08-11"'
+    :'"13335 | US | arin | 2010-07-14 | CLOUDFLARENET"';
+  return new Response(JSON.stringify({Status:0,Answer:[{type:16,data:record}]}),{status:200});
+ };
+ try{
+  const r=await worker.fetch(makeRequest("https://pulse-monitor.example.workers.dev/ip-info?ip=1.1.1.1"),env);
+  assert.equal(r.status,200);
+  const data=await r.json();
+  assert.equal(data.asn,"13335");assert.equal(data.organization,"CLOUDFLARENET");
+  assert.ok(calls.every(url=>url.startsWith("https://dns.google/resolve")));
+ }finally{globalThis.fetch=saved}
+});
