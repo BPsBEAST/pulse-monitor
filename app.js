@@ -6,6 +6,33 @@ const when=t=>Number.isFinite(t)?new Date(t).toLocaleString("pt-PT",{dateStyle:"
 let state=EMPTY(),page="overview",editingId=null,queue=Promise.resolve(),timer=null,toastTimer=null;
 const inFlight=new Set();
 let ready=false;
+// O campo técnico aceita apenas Workers. URLs comuns pertencem aos monitores.
+function isWorkerAddress(value){
+ try{
+  const u=new URL(value);
+  return u.protocol==="https:" && u.username==="" && u.password==="" &&
+    u.port==="" && u.search==="" && u.hash==="" && (u.pathname==="/" || u.pathname==="") &&
+    /^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.workers\.dev$/i.test(u.hostname);
+ }catch{return false}
+}
+async function recoverMisplacedWebsite(){
+ if(isWorkerAddress(state.api))return {recovered:false,updated:false};
+ const mistaken=state.api;
+ state.api=DEFAULT_API;
+ let recovered=false;
+ // Recuperação pontual do website confundido com a API na versão anterior.
+ // Não adicionamos automaticamente outros endpoints técnicos à lista de websites.
+ try{
+  const candidate=normalizeUrl(mistaken);
+  if(new URL(candidate).hostname==="formacao.inem.pt"){
+   if(!state.monitors.some(m=>m.url===candidate))registerMonitor(state,candidate,"Formação INEM");
+   recovered=true;
+  }
+ }catch{}
+ await saveState(state);
+ return {recovered,updated:true};
+}
+
 function toast(message){
  const el=$("toast");el.textContent=message;el.classList.add("show");
  clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove("show"),5200);
@@ -69,7 +96,7 @@ function navigate(to){
  document.querySelectorAll(".nav").forEach(b=>b.classList.toggle("active",b.dataset.page===to));
  const titles={overview:["Dashboard","Uma visão clara do estado dos teus websites."],websites:["Websites","Websites guardados e verificações manuais."],history:["Histórico","Apenas medições realmente realizadas."],incidents:["Incidentes","Falhas confirmadas e recuperações."],notifications:["Notificações","Alertas enquanto estás a utilizar o PULSE."],settings:["Definições","Dados locais, cópias de segurança e intervalos."]};
  $("pageTitle").textContent=titles[to][0];$("pageDescription").textContent=titles[to][1];
- $("addTop").classList.toggle("hidden",to==="settings");render();window.scrollTo({top:0,behavior:"smooth"});
+ $("addTop").classList.remove("hidden");render();window.scrollTo({top:0,behavior:"smooth"});
 }
 function openDialog(m=null){
  editingId=m?.id||null;$("monitorName").value=m?.name||"";$("monitorUrl").value=m?.url||"";
@@ -118,6 +145,7 @@ function schedule(){
 document.querySelectorAll(".nav").forEach(btn=>btn.addEventListener("click",()=>navigate(btn.dataset.page)));
 $("settingsBtn").onclick=()=>navigate("settings");
 $("addTop").onclick=()=>openDialog();$("closeDialog").onclick=()=>$("addDialog").close();
+$("addFromSettings").onclick=()=>openDialog();
 $("addForm").addEventListener("submit",async event=>{
  event.preventDefault();
  if(!ready)return;
@@ -131,6 +159,18 @@ $("addForm").addEventListener("submit",async event=>{
   toast("✓ Website "+(previous?"atualizado":"guardado")+" neste browser.");
   if(!previous)void checkOne(monitor.id,{manual:true});
  }catch(e){$("formError").textContent=e.message}
+ finally{submit.disabled=false}
+});
+$("quickAddForm").addEventListener("submit",async event=>{
+ event.preventDefault();
+ if(!ready)return;
+ const input=$("quickAddUrl"),submit=event.currentTarget.querySelector('[type="submit"]');
+ submit.disabled=true;$("quickAddError").textContent="";
+ try{
+  const monitor=await commit(s=>registerMonitor(s,input.value.trim()));
+  input.value="";toast("✓ Website adicionado e guardado: "+monitor.url);
+  void checkOne(monitor.id,{manual:true});
+ }catch(error){$("quickAddError").textContent=error.message}
  finally{submit.disabled=false}
 });
 document.addEventListener("click",async e=>{
@@ -156,9 +196,24 @@ if($("clearNotifications"))$("clearNotifications").onclick=async()=>{
 };
 $("saveApi").onclick=async()=>{
  const value=$("apiInput").value.trim().replace(/\/+$/,"");
- if(value){try{const u=new URL(value);if(u.protocol!=="https:"||u.username||u.password||u.search||u.hash)throw Error()}catch{$("apiStatus").textContent="Introduz um URL HTTPS válido.";return}}
- try{await commit(s=>{s.api=value});$("apiStatus").textContent="Guardado.";toast("Endereço da API guardado.")}
- catch(e){$("apiStatus").textContent=e.message}
+ if(!isWorkerAddress(value)){
+  $("apiStatus").textContent="Este campo é só para um endereço .workers.dev. Para monitorizar um website, usa o botão Adicionar website.";
+  toast("Não substituímos a API. Usa Adicionar website para guardar sites.");
+  return;
+ }
+ try{
+  await commit(s=>{s.api=value});
+  $("apiStatus").textContent="Configuração técnica guardada.";
+  toast("Servidor do PULSE atualizado.");
+ }catch(error){$("apiStatus").textContent=error.message}
+};
+$("resetApi").onclick=async()=>{
+ try{
+  await commit(s=>{s.api=DEFAULT_API});
+  $("apiInput").value=DEFAULT_API;
+  $("apiStatus").textContent="Servidor original restaurado.";
+  toast("API do PULSE restaurada.");
+ }catch(error){$("apiStatus").textContent=error.message}
 };
 if($("intervalInput"))$("intervalInput").onchange=async e=>{
  const minutes=Number(e.target.value);
@@ -192,9 +247,17 @@ if($("enableAlerts"))$("enableAlerts").onclick=async()=>{
 };
 (async()=>{
  try{
-  const loaded=await initializeStorage();state=loaded.state;ready=true;
-  setStorageMessage("Os dados não são sincronizados entre dispositivos. Se estiveres em navegação anónima, podem desaparecer ao fechar todas as janelas. Exporta um backup nas Definições.",!loaded.hasPersistentStore);
+  const loaded=await initializeStorage();state=loaded.state;
+  let recovery={recovered:false,updated:false};
+  try{recovery=await recoverMisplacedWebsite()}
+  catch(error){toast("Não foi possível guardar a recuperação: "+error.message)}
+  ready=true;
+  setStorageMessage("Os websites são guardados neste browser, não num servidor. Em navegação anónima podem desaparecer quando fechas a sessão. Exporta uma cópia nas Definições.",!loaded.hasPersistentStore);
   if(!loaded.hasPersistentStore)toast("O browser pode estar a bloquear o armazenamento. Verifica as permissões.");
   render();schedule();
+  if(recovery.recovered){
+    navigate("websites");
+    toast("✓ Recuperámos formacao.inem.pt e restaurámos a API do PULSE.");
+  }else if(recovery.updated)toast("Restaurámos a ligação correta ao servidor do PULSE.");
  }catch(e){ready=true;setStorageMessage("Não foi possível recuperar os dados guardados. Confirma as permissões de armazenamento do browser.",true);render()}
 })();
