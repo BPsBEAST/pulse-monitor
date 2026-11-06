@@ -11,3 +11,10 @@ select:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid #b0f
 .banner.hidden{display:none}
 @media(max-width:950px){.periods{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:720px){.periods{grid-template-columns:1fr}.period{padding:14px}.period strong{margin:5px 0}.monitor-actions{justify-content:flex-start}.nav{padding:5px 4px;min-width:43px}}
+
+.latency-panel{margin:0 0 20px}
+.latency-bars{display:flex;align-items:flex-end;gap:4px;height:135px;padding:12px 4px 0;border-bottom:1px solid #344458;overflow:hidden}
+.latency-bar{flex:1;min-width:3px;max-width:32px;border-radius:3px 3px 0 0;background:linear-gradient(180deg,#a8f67e,#478d63);opacity:.9}
+.latency-bar:hover{background:#d4ffc0;opacity:1}
+.latency-panel .small{margin:8px 0 0}
+@media(max-width:720px){.latency-bars{height:105px;gap:2px}}
