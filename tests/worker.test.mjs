@@ -103,7 +103,7 @@ test("passive public IP lookup returns ASN without connecting to the IP",async()
   assert.equal(body.asn,"13335");
   assert.equal(body.prefix,"1.1.1.0/24");
   assert.equal(body.organization,"CLOUDFLARENET");
-  assert.ok(calls.every(u=>u.startsWith("https://cloudflare-dns.com/dns-query")));
+  assert.ok(calls.every(u=>u.startsWith("https://dns.google/resolve")||u.startsWith("https://cloudflare-dns.com/dns-query")));
  }finally{globalThis.fetch=original}
 });
 test("private IP lookups are blocked before external queries",async()=>{
