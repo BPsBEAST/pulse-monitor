@@ -41,6 +41,31 @@ test("adding a website displays it, saves it and restores it on reload",async()=
  assert.match(element("websitesMonitors").innerHTML,/Website guardado/);
  assert.equal(element("totalStat").textContent,1);
 });
+test("misplaced website URL is recovered and Worker endpoint restored",async()=>{
+ kv.set("pulse:v2",JSON.stringify({version:3,revision:20,monitors:[],history:[],incidents:[],notifications:[],intervalMinutes:5,api:"https://formacao.inem.pt"}));
+ elements.clear();
+ await import("../app.js?recover-formacao");
+ await tick();await tick();
+ const saved=JSON.parse(kv.get("pulse:v2"));
+ assert.equal(saved.api,"https://pulse-monitor.brunofranciscospinto.workers.dev");
+ assert.equal(saved.monitors.length,1);
+ assert.equal(saved.monitors[0].url,"https://formacao.inem.pt/");
+ assert.match(element("websitesMonitors").innerHTML,/Formação INEM/);
+ assert.match(element("toast").textContent,/Recuperámos/);
+ element("apiInput").value="https://example.org";
+ await element("saveApi").onclick();
+ const after=JSON.parse(kv.get("pulse:v2"));
+ assert.equal(after.api,"https://pulse-monitor.brunofranciscospinto.workers.dev");
+ assert.match(element("apiStatus").textContent,/Adicionar website/);
+});
+test("quick website form saves a second domain, without changing the API",async()=>{
+ element("quickAddUrl").value="https://example.org";
+ await element("quickAddForm").handlers.submit({preventDefault(){},currentTarget:{querySelector(){return {disabled:false}}}});
+ const data=JSON.parse(kv.get("pulse:v2"));
+ assert.equal(data.monitors.length,2);
+ assert.equal(data.api,"https://pulse-monitor.brunofranciscospinto.workers.dev");
+ assert.match(element("websitesMonitors").innerHTML,/example.org/);
+});
 test.after(()=>{
  globalThis.setInterval=realSetInterval;
  globalThis.setTimeout=realSetTimeout;
