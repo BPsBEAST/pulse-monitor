@@ -4,11 +4,11 @@ Free website monitoring without user accounts. Static GitHub Pages frontend + Cl
 
 **Frontend:** https://bpsbeast.github.io/pulse-monitor/  
 **Worker:** https://pulse-monitor.brunofranciscospinto.workers.dev  
-**Release:** v0.3 MVP
+**Release:** v0.4 MVP
 
 ## Adicionar um website (importante)
 
-Na página **Websites**, utiliza o campo **Adicionar website para monitorizar**. O botão **+ Adicionar website** também permanece acessível a partir de qualquer página, incluindo as Definições. O endereço do Cloudflare Worker é uma opção exclusivamente técnica escondida em **Configuração avançada do servidor PULSE**.
+Na **Visão geral**, o formulário principal **Que website queres acompanhar?** permite adicionar um endereço sem entrar em menus. A página **Websites** também tem um formulário rápido. Depois de guardar, o PULSE abre automaticamente a lista de websites, permitindo confirmar onde ficou o monitor. O botão **+ Novo website** também permanece acessível a partir de qualquer página, incluindo as Definições. O endereço do Cloudflare Worker é uma opção exclusivamente técnica escondida em **Configuração avançada do servidor PULSE**.
 
 Na v0.2 era possível guardar um website por engano no campo da API. A v0.3 recupera especificamente `https://formacao.inem.pt` quando estiver guardado nesse campo, adiciona-o como monitor e restaura `https://pulse-monitor.brunofranciscospinto.workers.dev` como backend. Isto só funciona se os dados anteriores ainda existirem no browser. Se o utilizador tiver fechado uma sessão anónima, terá de adicionar novamente o website.
 
@@ -26,6 +26,16 @@ Na v0.2 era possível guardar um website por engano no campo da API. A v0.3 recu
 ## Important storage warning
 
 All data belongs to the browser profile and device. **Incognito/anonymous browsing is temporary:** closing all private windows removes the session's saved websites. For durable day-to-day use, open the PULSE URL in an ordinary browser window and periodically export a backup under Settings. Data is **not synced** between devices.
+
+
+## Melhorias de usabilidade v0.4
+
+- Campo **Adicionar website** em destaque no topo da Visão geral, com uma única ação principal.
+- Navegação mais clara: Visão geral, Websites, Histórico, Incidentes, Notificações e Definições.
+- Ao guardar, o website aparece logo em **Websites**; o estado distingue *Por verificar*, *A verificar*, *Online*, *Indisponível* e *Estado inconclusivo*.
+- Quando a lista está vazia, um botão visível convida a adicionar o primeiro website.
+- Os avisos técnicos de armazenamento só ocupam espaço quando existe um problema real. Os limites de persistência continuam explicados junto ao formulário e nas Definições.
+- Definições técnicas do Cloudflare Worker continuam escondidas na secção avançada para evitar confusão com websites monitorizados.
 
 ## Architecture
 
