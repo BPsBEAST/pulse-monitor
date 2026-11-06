@@ -16,7 +16,7 @@ export function sanitizeMonitor(value){
   if(!value||typeof value!=="object")return null;
   try{
     const url=normalizeUrl(value.url);
-    return {id:typeof value.id==="string"&&value.id.length<150?value.id:crypto.randomUUID(),url,name:String(value.name||"").slice(0,60),status:["online","offline","unknown"].includes(value.status)?value.status:"unknown",ms:Number.isFinite(value.ms)?value.ms:null,checkedAt:Number.isFinite(value.checkedAt)?value.checkedAt:null,paused:!!value.paused,pendingStatus:value.pendingStatus||null,pendingCount:Math.min(2,Math.max(0,Number(value.pendingCount)||0))};
+    return {id:typeof value.id==="string"&&value.id.length<150?value.id:crypto.randomUUID(),url,name:String(value.name||"").slice(0,60),status:["online","offline","unknown"].includes(value.status)?value.status:"unknown",ms:Number.isFinite(value.ms)?value.ms:null,checkedAt:Number.isFinite(value.checkedAt)?value.checkedAt:null,code:Number.isInteger(value.code)?value.code:null,lastError:typeof value.lastError==="string"?value.lastError.slice(0,160):null,paused:!!value.paused,pendingStatus:value.pendingStatus||null,pendingCount:Math.min(2,Math.max(0,Number(value.pendingCount)||0))};
   }catch{return null}
 }
 export function hydrate(raw){
@@ -44,7 +44,7 @@ export function registerMonitor(state,url,name="",id){
   if(id){
     const m=state.monitors.find(x=>x.id===id);
     if(!m)throw Error("Este website já não existe.");
-    if(m.url!==normalized){m.status="unknown";m.ms=null;m.checkedAt=null;m.pendingStatus=null;m.pendingCount=0;}
+    if(m.url!==normalized){m.status="unknown";m.ms=null;m.code=null;m.lastError=null;m.checkedAt=null;m.pendingStatus=null;m.pendingCount=0;}
     m.url=normalized;m.name=String(name).trim().slice(0,60);
     return m;
   }
@@ -57,9 +57,10 @@ export function applyCheck(state,id,result,at=Date.now()){
   const status=["online","offline","unknown"].includes(result?.status)?result.status:"unknown";
   const code=Number.isInteger(result?.code)?result.code:null;
   const ms=Number.isFinite(result?.ms)?result.ms:null;
-  state.history.unshift({id,url:monitor.url,name:monitor.name,status,code,ms,at});
+  const error=typeof result?.error==="string"?result.error.slice(0,160):null;
+  state.history.unshift({id,url:monitor.url,name:monitor.name,status,code,ms,error,at});
   state.history.length=Math.min(state.history.length,MAX_CHECKS);
-  monitor.checkedAt=at;monitor.ms=ms;
+  monitor.checkedAt=at;monitor.ms=ms;monitor.code=code;monitor.lastError=error;
   if(status==="unknown"){monitor.pendingStatus=null;monitor.pendingCount=0;return null}
   if(status===monitor.status){monitor.pendingStatus=null;monitor.pendingCount=0;return null}
   monitor.pendingCount=monitor.pendingStatus===status?monitor.pendingCount+1:1;
