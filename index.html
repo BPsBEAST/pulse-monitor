@@ -50,6 +50,9 @@
  <form id="diagnosticForm" class="quick-add-form"><label class="sr-only" for="diagnosticUrl">URL de um website público</label><input id="diagnosticUrl" type="url" placeholder="https://exemplo.pt" required aria-label="URL do website para diagnóstico"><button class="primary" id="diagnoseBtn" type="submit">Executar diagnóstico</button></form><p id="diagnosticError" class="error" role="alert"></p>
  </div>
  <div id="diagnosticResults" aria-live="polite" class="diagnostic-results"><div class="empty diagnostic-empty"><span class="empty-icon">⌁</span>Introduz um endereço público acima para consultar o DNS e a resposta HTTP.</div></div>
+ <div class="panel padded ip-lookup-panel"><div class="section-header"><div><p class="eyebrow">IP LOOKUP</p><h2>Informação de um IP público</h2><p class="muted small">Consulta informativa de ASN, rede e organização. Não realiza ping, scans de portas nem pesquisa IPs pessoais.</p></div></div>
+ <form id="ipLookupForm" class="quick-add-form"><label class="sr-only" for="ipLookupInput">Endereço IPv4 ou IPv6 público</label><input id="ipLookupInput" required maxlength="45" placeholder="1.1.1.1" aria-label="Endereço IPv4 ou IPv6 público"><button class="primary" id="ipLookupBtn" type="submit">Consultar IP</button></form>
+ <p id="ipLookupError" class="error" role="alert"></p><div id="ipLookupResults" aria-live="polite"></div></div>
 </section>
 <section id="historyPage" class="page hidden"><div class="panel padded"><div class="section-header"><h2>Histórico de verificações</h2><button id="clearHistory" class="subtle">Limpar histórico</button></div><div id="fullHistory"></div></div></section>
 <section id="incidentsPage" class="page hidden"><div class="panel padded"><h2>Incidentes detetados</h2><p class="muted small">Uma falha de rede ou erro do monitor não é automaticamente considerado um incidente do website.</p><div id="incidentList"></div></div></section>
