@@ -4,13 +4,23 @@ Free website monitoring without user accounts. Static GitHub Pages frontend + Cl
 
 **Frontend:** https://bpsbeast.github.io/pulse-monitor/  
 **Worker:** https://pulse-monitor.brunofranciscospinto.workers.dev  
-**Release:** v0.4 MVP
+**Release:** v0.5 MVP
 
 ## Adicionar um website (importante)
 
-Na **Visão geral**, o formulário principal **Que website queres acompanhar?** permite adicionar um endereço sem entrar em menus. A página **Websites** também tem um formulário rápido. Depois de guardar, o PULSE abre automaticamente a lista de websites, permitindo confirmar onde ficou o monitor. O botão **+ Novo website** também permanece acessível a partir de qualquer página, incluindo as Definições. O endereço do Cloudflare Worker é uma opção exclusivamente técnica escondida em **Configuração avançada do servidor PULSE**.
+Na **Visão geral**, o formulário principal **Monitorizar um novo website** permite adicionar um endereço sem entrar em menus. A página **Websites** também tem um formulário rápido. Depois de guardar, o PULSE abre automaticamente a lista de websites, permitindo confirmar onde ficou o monitor. O botão **+ Novo website** também permanece acessível a partir de qualquer página, incluindo as Definições. O endereço do Cloudflare Worker é uma opção exclusivamente técnica escondida em **Configuração avançada do servidor PULSE**.
 
 Na v0.2 era possível guardar um website por engano no campo da API. A v0.3 recupera especificamente `https://formacao.inem.pt` quando estiver guardado nesse campo, adiciona-o como monitor e restaura `https://pulse-monitor.brunofranciscospinto.workers.dev` como backend. Isto só funciona se os dados anteriores ainda existirem no browser. Se o utilizador tiver fechado uma sessão anónima, terá de adicionar novamente o website.
+
+## Dashboard e diagnósticos v0.5
+
+- Novo dashboard inspirado em ferramentas de observabilidade: gráfico de latência e média móvel, cartões de estado por website, métricas, disponibilidade medida e atividade recente. **Todos os valores são derivados de verificações reais**; quando faltam dados, são mostrados estados vazios.
+- Navegação **Diagnóstico** e botão interno **Diagnóstico** em cada monitor.
+- Endpoint `GET /diagnostics?url=https://exemplo.pt`: IPs públicos resolvidos, registos DNS A/AAAA/CNAME/MX/NS, HTTP status, latência, cabeçalhos selecionados e hostname de redirecionamento (sem seguir o redirect).
+- Endpoint `GET /ip-info?ip=1.1.1.1`: consulta passiva de ASN, prefixo BGP e organização via Team Cymru DNS. Não envia ping nem pedidos HTTP ao IP consultado.
+- A consulta de IPs tem como alvo a titularidade/roteamento de **IPs públicos de infraestrutura**, não a identificação de pessoas.
+- **Limitações:** não há ping ICMP, traceroute, scans de portas, geolocalização precisa nem validade do certificado TLS; não inventamos dados para estas funcionalidades.
+- Consultas sujeitas a limites de pedidos, validação de destinos e restrição de CORS. A validação DNS prévia ainda não garante proteção total contra DNS rebinding.
 
 ## What works
 
@@ -42,6 +52,8 @@ All data belongs to the browser profile and device. **Incognito/anonymous browsi
 - `index.html`, `styles.css`, `app.js`: responsive browser UI.
 - `pulse-core.mjs`: URL validation, monitor state, incident confirmation and statistics.
 - `pulse-storage.mjs`: IndexedDB + localStorage persistence, migrations and rollback-safe saves.
+- `pulse-viz.mjs`: SVG charts from measured data only.
+- `pulse-diagnostics.mjs`: escaped HTML renderers for DNS, HTTP and IP results.
 - `worker/index.js`: external HTTP monitoring and input validation.
 - `worker/wrangler.toml`: Worker deployment and approximate Cloudflare rate limiting.
 - `tests/*.test.mjs`: Worker response checks, monitor logic, storage roundtrip and UI reload regression tests.
@@ -74,4 +86,4 @@ Run `node --check app.js`, `node --check pulse-core.mjs`, `node --check pulse-st
 
 ## Status
 
-The GitHub code contains the new persistence implementation and tests. Live production status needs a successful deployment and real-browser verification before declaring the feature complete.
+The GitHub code contains the redesigned dashboard, diagnostics and regression tests. Live production status needs a successful deployment and real-browser verification before declaring the feature complete.
