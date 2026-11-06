@@ -83,7 +83,11 @@ function render(){
   const status=m.paused?"Pausado":m.status==="online"?"Online":m.status==="offline"?"Indisponível":m.checkedAt?"Inconclusivo":"Por verificar";
   return '<button type="button" class="service-status-card panel" data-action="diagnose" data-id="'+esc(m.id)+'"><div class="service-top"><span class="service-name">'+esc(m.name||new URL(m.url).hostname)+'</span><span class="service-arrow">↗</span></div><span class="service-address">'+esc(new URL(m.url).hostname)+'</span><span class="service-status '+cls+'"><i class="status-led"></i>'+status+'</span><div class="service-track"><span style="width:'+(percent===null?0:percent.toFixed(1))+'%"></span></div><div class="service-foot"><span>'+(percent===null?"Sem medições":percent.toFixed(1)+"% das verificações")+'</span><span>'+(Number.isFinite(m.ms)?m.ms+" ms":"—")+'</span></div></button>';
  };
- $("serviceCards").innerHTML=state.monitors.length?state.monitors.slice(0,4).map(makeCard).join(""):'<div class="service-empty panel"><span class="empty-icon">◉</span><strong>Os teus serviços aparecem aqui</strong><p>Adiciona um website e acompanha o seu estado neste painel.</p></div>';
+ const visibleServices=state.monitors.slice(0,4);
+ const addSlot='<button type="button" class="service-placeholder" data-action="add-empty"><div class="service-top"><span class="service-name">Novo serviço</span><span class="service-arrow">＋</span></div><span class="service-address">Monitoriza outro website</span><span class="placeholder-plus">＋</span><div class="service-foot"><span>Adicionar monitor</span><span>↗</span></div></button>';
+ $("serviceCards").innerHTML=visibleServices.length
+  ?visibleServices.map(makeCard).join("")+Array.from({length:Math.max(0,4-visibleServices.length)},()=>addSlot).join("")
+  :'<div class="service-empty panel"><span class="empty-icon">◉</span><strong>Os teus serviços vão aparecer aqui</strong><p>Começa por adicionar um website e o estado de cada serviço ficará visível.</p><button type="button" class="subtle" data-action="add-empty">＋ Adicionar website</button></div>';
  const filtered=state.monitors.filter(m=>!searchTerm||(m.name||"").toLowerCase().includes(searchTerm)||m.url.toLowerCase().includes(searchTerm));
  const monitors=filtered.map(monitorHtml).join("")||(searchTerm?empty("Nenhum website corresponde à pesquisa.") : emptyMonitors());
  $("overviewMonitors").innerHTML=monitors;$("websitesMonitors").innerHTML=monitors;
