@@ -172,7 +172,7 @@ $("importFile").onchange=async e=>{
   if(!data||!Array.isArray(data.monitors)||data.monitors.length>20||!Array.isArray(data.history)||data.history.length>5000)throw Error("Backup inválido.");
   if(!confirm("Substituir os websites atuais pelos existentes no backup?"))return;
   const imported=hydrate({...data,api:state.api});
-  await commit(s=>{Object.assign(s,imported)});
+  await commit(s=>{const currentRevision=s.revision;Object.assign(s,imported);s.revision=currentRevision});
   toast("Backup importado com "+state.monitors.length+" websites.");navigate("websites");
  }catch(error){toast("Erro na importação: "+error.message)}
  finally{e.target.value=""}
