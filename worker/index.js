@@ -39,13 +39,24 @@ function publicIpv6(address) {
     !value.startsWith("2001:20:") && !value.startsWith("2001:2:");
 }
 async function lookupDns(host,type){
- const req=new URL("https://cloudflare-dns.com/dns-query");
- req.searchParams.set("name",host);req.searchParams.set("type",type);
- const response=await fetch(req.href,{headers:{Accept:"application/dns-json"},signal:AbortSignal.timeout(3000),redirect:"error"});
- if(!response.ok)throw Error("dns-unavailable");
- const payload=await response.json();
- if(![0,3].includes(payload.Status))throw Error("dns-unavailable");
- return Array.isArray(payload.Answer)?payload.Answer.slice(0,30):[];
+ // The Cloudflare DoH endpoint may refuse requests originating from Workers.
+ // Use Google's documented JSON DNS API, with a separate DoH provider as fallback.
+ const providers=[
+  {base:"https://dns.google/resolve",headers:{Accept:"application/json"}},
+  {base:"https://cloudflare-dns.com/dns-query",headers:{Accept:"application/dns-json"}}
+ ];
+ for(const provider of providers){
+  try{
+   const req=new URL(provider.base);
+   req.searchParams.set("name",host);req.searchParams.set("type",type);
+   const response=await fetch(req.href,{headers:provider.headers,signal:AbortSignal.timeout(2500),redirect:"error"});
+   if(!response.ok)continue;
+   const payload=await response.json();
+   if(![0,3].includes(payload.Status))continue;
+   return Array.isArray(payload.Answer)?payload.Answer.slice(0,30):[];
+  }catch{}
+ }
+ throw Error("dns-unavailable");
 }
 function checkDnsAddresses(records){
  const addresses=records.filter(x=>x&&[1,28].includes(x.type));
@@ -157,7 +168,11 @@ export default {
     if(!decision.success)return json({error:"Too many requests"},429,origin,{"Retry-After":"60"});
     if(incoming.pathname==="/ip-info"){
       try{return json(await ipOwnership(incoming.searchParams.get("ip")),200,origin)}
-      catch(error){return json({error:error.message==="unsafe-ip"?"Private or special-purpose IP denied":"Invalid or unavailable IP lookup"},400,origin)}
+      catch(error){
+       if(error.message==="unsafe-ip")return json({error:"Esse endereço IP é privado, reservado ou não pode ser consultado."},400,origin);
+       if(error.message==="invalid-ip")return json({error:"Introduz um endereço IPv4 ou IPv6 válido."},400,origin);
+       return json({error:"O serviço de consulta de rede está temporariamente indisponível."},503,origin,{"Retry-After":"30"});
+      }
     }
     let target;
     try{target=parseTarget(incoming.searchParams.get("url"))}
