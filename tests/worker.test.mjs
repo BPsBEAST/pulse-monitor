@@ -58,3 +58,28 @@ test("missing limiter fails closed",async()=>{
  const result=await worker.fetch(makeRequest(),{ALLOWED_ORIGIN:ORIGIN});
  assert.equal(result.status,503);
 });
+
+test("diagnostics returns DNS records, public IPs and HTTP status",()=>withMock(async()=>new Response(null,{status:200,headers:{"content-type":"text/html","server":"test-server"}}),async()=>{
+ const url="https://pulse-monitor.example.workers.dev/diagnostics?url="+encodeURIComponent("https://example.com");
+ const response=await worker.fetch(makeRequest(url),env);
+ assert.equal(response.status,200);
+ const body=await response.json();
+ assert.equal(body.hostname,"example.com");
+ assert.ok(body.ips.includes("93.184.215.14"));
+ assert.equal(body.http.status,"online");
+ assert.equal(body.http.code,200);
+ assert.equal(body.http.headers["content-type"],"text/html");
+ assert.equal(body.tls.supported,false);
+}));
+test("diagnostics rejects private IPs before DNS or probing",async()=>{
+ const u="https://pulse-monitor.example.workers.dev/diagnostics?url="+encodeURIComponent("http://127.0.0.1");
+ const response=await worker.fetch(makeRequest(u),env);
+ assert.equal(response.status,400);
+});
+test("redirects remain unknown in diagnostics",()=>withMock(async()=>new Response(null,{status:302,headers:{"location":"http://127.0.0.1/secret?token=private"}}),async()=>{
+ const url="https://pulse-monitor.example.workers.dev/diagnostics?url="+encodeURIComponent("https://example.com");
+ const body=await (await worker.fetch(makeRequest(url),env)).json();
+ assert.equal(body.http.status,"unknown");
+ assert.equal(body.http.redirectHost,"127.0.0.1");
+ assert.ok(!JSON.stringify(body).includes("token=private"));
+}));
