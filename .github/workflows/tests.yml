@@ -16,5 +16,10 @@ jobs:
           node-version: "22"
       - name: Check frontend JavaScript syntax
         run: node --check app.js
+      - name: Check monitoring modules syntax
+        run: |
+          node --check pulse-core.mjs
+          node --check pulse-storage.mjs
+          node --check worker/index.js
       - name: Run Worker API unit tests
         run: node --test tests/*.test.mjs
