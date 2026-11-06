@@ -4,20 +4,20 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#090e17"><meta name="description" content="PULSE — monitorização gratuita de websites e APIs, sem contas.">
 <title>PULSE — Website Monitoring</title>
-<link rel="stylesheet" href="./styles.css">
+<link rel="stylesheet" href="./styles.css?v=6">
 </head>
 <body>
 <header class="topbar"><a class="logo" href="./" aria-label="PULSE, página inicial"><span class="logo-mark">◉</span> pulse<span class="dot">.</span></a><div class="top-search"><span aria-hidden="true">⌕</span><input id="siteSearch" type="search" placeholder="Pesquisar websites..." aria-label="Pesquisar websites monitorizados"></div><div class="top-right"><span class="tag">● FREE · NO ACCOUNT</span><button id="settingsBtn" class="icon-button" aria-label="Definições">⚙</button></div></header>
 <div class="shell">
-<aside class="sidebar"><div class="sidebar-caption">MENU</div><nav aria-label="Navegação principal"><button class="nav active" data-page="overview">▦ <span>Visão geral</span></button><button class="nav" data-page="websites">◉ <span>Websites</span></button><button class="nav" data-page="diagnostics">⌘ <span>Diagnóstico</span></button><button class="nav" data-page="history">◷ <span>Histórico</span></button><button class="nav" data-page="incidents">⚑ <span>Incidentes</span></button><button class="nav" data-page="notifications">♧ <span>Notificações</span></button><button class="nav" data-page="settings">⚙ <span>Definições</span></button></nav><div class="sidebar-footer">PULSE v0.5<br><span>Os dados ficam neste browser</span></div></aside>
+<aside class="sidebar"><div class="sidebar-caption">MENU</div><nav aria-label="Navegação principal"><button class="nav active" data-page="overview">▦ <span>Visão geral</span></button><button class="nav" data-page="websites">◉ <span>Websites</span></button><button class="nav" data-page="diagnostics">⌘ <span>Diagnóstico</span></button><button class="nav" data-page="history">◷ <span>Histórico</span></button><button class="nav" data-page="incidents">⚑ <span>Incidentes</span></button><button class="nav" data-page="notifications">♧ <span>Notificações</span></button><button class="nav" data-page="settings">⚙ <span>Definições</span></button></nav><div class="sidebar-footer">PULSE v0.6<br><span>Os dados ficam neste browser</span></div></aside>
 <main class="content">
-<div class="page-head"><div><p class="eyebrow">PULSE · MONITORIZAÇÃO</p><h1 id="pageTitle">Visão geral</h1><p id="pageDescription" class="muted">Acompanha a disponibilidade e o tempo de resposta dos teus websites.</p></div><button id="addTop" class="primary">＋ Novo website</button></div>
+<div class="page-head"><div><p class="eyebrow">MONITORING OVERVIEW</p><h1 id="pageTitle">Visão geral</h1><p id="pageDescription" class="muted">Todos os teus serviços e métricas num único lugar.</p></div><button id="addTop" class="primary">＋ Novo website</button></div>
 <div class="banner hidden" id="storageNotice"></div>
 <div class="banner" id="backendBanner"><span class="banner-icon">ⓘ</span><div><strong>Verificações ainda não configuradas</strong><p>O dashboard e o armazenamento local estão disponíveis. Para obter estados e tempos de resposta reais, é necessário publicar o Cloudflare Worker e indicar o seu endereço nas Definições.</p></div></div>
 <section id="overviewPage" class="page">
  <div class="overview-grid">
   <article class="panel dashboard-chart-card">
-   <div class="dash-chart-head"><div><p class="eyebrow">REAL-TIME OVERVIEW</p><h2>Desempenho dos teus websites</h2><p class="muted small">Latência real e média móvel · milissegundos (ms)</p></div><div class="chart-legend"><span><i class="legend-dot bright"></i> Latência</span><span><i class="legend-dot blue"></i> Média móvel</span></div></div>
+   <div class="dash-chart-head"><div><p class="eyebrow">WEBSITE PERFORMANCE</p><h2>Uptime & tempo de resposta</h2><p class="muted small">Medições reais · latência e tendência</p></div><div class="chart-legend"><span><i class="legend-dot bright"></i> Latência</span><span><i class="legend-dot blue"></i> Média móvel</span></div></div>
    <div class="chart-period-controls" role="group" aria-label="Intervalo do gráfico">
      <button class="chart-period active" data-period="86400000" type="button">24h</button><button class="chart-period" data-period="604800000" type="button">7 dias</button><button class="chart-period" data-period="2592000000" type="button">30 dias</button>
    </div>
@@ -32,15 +32,15 @@
   <article class="stat"><span><i class="stat-dot red-dot"></i> Incidentes ativos</span><strong class="red" id="downStat">0</strong><small>Falhas confirmadas</small></article>
   <article class="stat"><span><i class="stat-dot blue-dot"></i> Latência média</span><strong id="latencyStat">—</strong><small>Últimos resultados online</small></article>
  </div>
- <div class="panel padded start-panel">
-  <div class="section-header"><div><p class="eyebrow">ADICIONAR MONITOR</p><h2>Monitorizar um novo website</h2><p class="muted small">Introduz o endereço completo do website para começar.</p></div><span class="start-signal" aria-hidden="true">＋</span></div>
-  <form id="dashboardAddForm" class="quick-add-form"><label class="sr-only" for="dashboardAddUrl">Website a monitorizar</label><input id="dashboardAddUrl" type="url" required autocomplete="url" placeholder="https://exemplo.pt" aria-label="Website a monitorizar"><button type="submit" class="primary">＋ Adicionar website</button></form>
-  <p class="error" id="dashboardAddError" role="alert"></p><p class="storage-hint">Sem contas · Dados guardados neste navegador · As verificações automáticas dependem da página aberta</p>
- </div>
  <div class="dash-bottom-grid">
   <article class="panel padded"><div class="section-header"><div><h2>Tempo de resposta</h2><p class="muted small">Últimas medições reais</p></div></div><div id="latencyChart"></div></article>
   <article class="panel padded"><div class="section-header"><div><h2>Disponibilidade</h2><p class="muted small">Percentagem das verificações registadas</p></div></div><div class="periods" id="periodCards"></div></article>
   <article class="panel padded"><div class="section-header"><div><h2>Atividade recente</h2><p class="muted small">Últimos resultados registados</p></div><button class="subtle" id="openHistory" type="button">Ver histórico</button></div><div id="recentHistory"></div></article>
+ </div>
+ <div class="panel padded start-panel">
+  <div class="section-header"><div><p class="eyebrow">ADICIONAR MONITOR</p><h2>Monitorizar um novo website</h2><p class="muted small">Introduz o endereço completo do website para começar.</p></div><span class="start-signal" aria-hidden="true">＋</span></div>
+  <form id="dashboardAddForm" class="quick-add-form"><label class="sr-only" for="dashboardAddUrl">Website a monitorizar</label><input id="dashboardAddUrl" type="url" required autocomplete="url" placeholder="https://exemplo.pt" aria-label="Website a monitorizar"><button type="submit" class="primary">＋ Adicionar website</button></form>
+  <p class="error" id="dashboardAddError" role="alert"></p><p class="storage-hint">Sem contas · Dados guardados neste navegador · As verificações automáticas dependem da página aberta</p>
  </div>
  <div class="section-header monitors-title"><div><h2>Todos os websites</h2><p class="muted">Estado da última verificação, sem valores inventados.</p></div><button class="subtle" id="checkAll">↻ Verificar todos</button></div><div class="panel"><div id="overviewMonitors"></div></div>
 </section>
@@ -61,5 +61,5 @@
 </main></div>
 <dialog id="addDialog"><form id="addForm" class="dialog-content"><div class="dialog-head"><div><p class="eyebrow">NEW MONITOR</p><h2>Adicionar website</h2></div><button type="button" class="close" id="closeDialog" aria-label="Fechar">×</button></div><label for="monitorName">Nome <span class="muted">(opcional)</span></label><input id="monitorName" maxlength="60" placeholder="O meu website"><label for="monitorUrl">Endereço URL</label><input id="monitorUrl" type="url" required placeholder="https://exemplo.pt"><p class="small muted">São aceites URLs públicas HTTP e HTTPS, sem portas personalizadas.</p><p id="formError" class="error" role="alert"></p><button class="primary" type="submit">Adicionar monitor</button></form></dialog>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
-<script type="module" src="./app.js"></script>
+<script type="module" src="./app.js?v=6"></script>
 </body></html>
