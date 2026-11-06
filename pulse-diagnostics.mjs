@@ -19,3 +19,10 @@ export function diagnosticsHtml(data){
  '<div class="diag-details-grid"><article class="panel padded"><h2>Cabeçalhos HTTP</h2>'+(headers||'<p class="muted small">Sem cabeçalhos disponíveis.</p>')+(http.redirectHost?'<div class="diag-row"><span>Destino de redirecionamento</span><strong>'+escapeHtml(http.redirectHost)+'</strong></div>':"")+'</article>'+
  '<article class="panel padded"><h2>HTTPS / Certificado</h2><p class="muted small">Protocolo: '+escapeHtml(data.protocol==="https"?"HTTPS":"HTTP")+'</p><p class="muted small">O Worker atual não disponibiliza a data de validade do certificado remoto. Não mostramos dados TLS inventados.</p></article></div>';
 }
+
+export function ipInfoHtml(data){
+ if(!data||typeof data.ip!=="string")return '<p class="muted small">A consulta não devolveu um IP válido.</p>';
+ if(!data.found)return '<div class="diag-ip-result"><strong>'+escapeHtml(data.ip)+'</strong><p class="muted small">Não foram encontrados dados de encaminhamento disponíveis para este IP.</p></div>';
+ const rows=[["ASN",data.asn?("AS"+data.asn):"—"],["Organização",data.organization||"—"],["Prefixo BGP",data.prefix||"—"],["País do registo",data.country||"—"],["Registo regional",data.registry||"—"],["Data de atribuição",data.allocated||"—"]];
+ return '<div class="diag-ip-result"><div class="diag-ip-heading"><div><p class="eyebrow">INFORMAÇÃO DE REDE</p><h3>'+escapeHtml(data.ip)+'</h3></div><span class="diag-pill">IPv'+(data.family===6?"6":"4")+'</span></div><div class="ip-info-grid">'+rows.map(([label,value])=>'<div class="ip-info-item"><span>'+escapeHtml(label)+'</span><strong>'+escapeHtml(value)+'</strong></div>').join("")+'</div><p class="muted small">Fonte: '+escapeHtml(data.source||"consulta DNS de encaminhamento")+'. O país refere-se ao registo da rede e não à localização precisa de uma pessoa ou dispositivo.</p></div>';
+}
