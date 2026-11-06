@@ -4,7 +4,13 @@ Free website monitoring without user accounts. Static GitHub Pages frontend + Cl
 
 **Frontend:** https://bpsbeast.github.io/pulse-monitor/  
 **Worker:** https://pulse-monitor.brunofranciscospinto.workers.dev  
-**Release:** v0.2 MVP
+**Release:** v0.3 MVP
+
+## Adicionar um website (importante)
+
+Na página **Websites**, utiliza o campo **Adicionar website para monitorizar**. O botão **+ Adicionar website** também permanece acessível a partir de qualquer página, incluindo as Definições. O endereço do Cloudflare Worker é uma opção exclusivamente técnica escondida em **Configuração avançada do servidor PULSE**.
+
+Na v0.2 era possível guardar um website por engano no campo da API. A v0.3 recupera especificamente `https://formacao.inem.pt` quando estiver guardado nesse campo, adiciona-o como monitor e restaura `https://pulse-monitor.brunofranciscospinto.workers.dev` como backend. Isto só funciona se os dados anteriores ainda existirem no browser. Se o utilizador tiver fechado uma sessão anónima, terá de adicionar novamente o website.
 
 ## What works
 
