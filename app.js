@@ -1,6 +1,6 @@
-import {DEFAULT_API,EMPTY,normalizeUrl,registerMonitor,applyCheck,summary,hydrate} from "./pulse-core.mjs";
-import {initializeStorage,saveState} from "./pulse-storage.mjs";
-import {latencySvg,chartModel} from "./pulse-viz.mjs";
+import {DEFAULT_API,EMPTY,normalizeUrl,registerMonitor,applyCheck,summary,hydrate} from "./pulse-core.mjs?v=7";
+import {initializeStorage,saveState} from "./pulse-storage.mjs?v=7";
+import {latencySvg,chartModel} from "./pulse-viz.mjs?v=7";
 import {diagnosticsHtml,ipInfoHtml} from "./pulse-diagnostics.mjs";
 const $=id=>document.getElementById(id);
 const esc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
