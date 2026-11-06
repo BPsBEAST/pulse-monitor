@@ -1,4 +1,4 @@
-import {hydrate,EMPTY} from "./pulse-core.mjs";
+import {hydrate,EMPTY} from "./pulse-core.mjs?v=7";
 const STORE="pulse:v2", DB_NAME="pulse-history", DB_VERSION=2;
 let db=null;
 function getLocal(){
