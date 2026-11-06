@@ -1,7 +1,7 @@
 import {DEFAULT_API,EMPTY,normalizeUrl,registerMonitor,applyCheck,summary,hydrate} from "./pulse-core.mjs";
 import {initializeStorage,saveState} from "./pulse-storage.mjs";
 import {latencySvg,chartModel} from "./pulse-viz.mjs";
-import {diagnosticsHtml} from "./pulse-diagnostics.mjs";
+import {diagnosticsHtml,ipInfoHtml} from "./pulse-diagnostics.mjs";
 const $=id=>document.getElementById(id);
 const esc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const when=t=>Number.isFinite(t)?new Date(t).toLocaleString("pt-PT",{dateStyle:"short",timeStyle:"short"}):"Nunca";
@@ -223,6 +223,27 @@ async function runDiagnostics(input){
 $("diagnosticForm").addEventListener("submit",event=>{
  event.preventDefault();
  void runDiagnostics($("diagnosticUrl").value.trim());
+});
+async function runIpLookup(ip){
+ const input=String(ip||"").trim();
+ if(!input){$("ipLookupError").textContent="Introduz um IPv4 ou IPv6 público.";return}
+ $("ipLookupError").textContent="";$("ipLookupBtn").disabled=true;
+ $("ipLookupResults").innerHTML='<div class="diagnostic-loading"><span class="loading-pulse">◉</span> A consultar dados públicos de encaminhamento...</div>';
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),11000);
+ try{
+  const response=await fetch(state.api+"/ip-info?ip="+encodeURIComponent(input),{signal:controller.signal,headers:{Accept:"application/json"}});
+  const data=await response.json();
+  if(!response.ok)throw Error(response.status===404?"A nova versão do Worker ainda não foi publicada.":data.error||"Não foi possível consultar este IP.");
+  if(typeof data.ip!=="string")throw Error("Resposta inesperada da API.");
+  $("ipLookupResults").innerHTML=ipInfoHtml(data);
+ }catch(error){
+  $("ipLookupError").textContent=error.name==="AbortError"?"A consulta excedeu o tempo limite.":error.message;
+  $("ipLookupResults").innerHTML="";
+ }finally{clearTimeout(timer);$("ipLookupBtn").disabled=false}
+}
+$("ipLookupForm").addEventListener("submit",event=>{
+ event.preventDefault();
+ void runIpLookup($("ipLookupInput").value);
 });
 document.addEventListener("click",async e=>{
  const periodBtn=e.target.closest("[data-period]");
