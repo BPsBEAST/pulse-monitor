@@ -126,7 +126,7 @@ async function probeHttp(target,withHeaders=false){
  try{
   const options={method:"HEAD",redirect:"manual",signal:AbortSignal.timeout(8000)};
   let res=await fetch(target.href,options);
-  if([405,501].includes(res.status)){
+  if([403,405,501].includes(res.status) || (res.status>=500&&res.status<600)){
    res=await fetch(target.href,{...options,method:"GET"});
    try{await res.body?.cancel()}catch{}
   }
