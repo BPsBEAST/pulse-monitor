@@ -1,41 +1,39 @@
 # PULSE — Website Monitoring
 
-A free, account-free website monitoring dashboard. No Supabase, no tracking, and no traditional database.
+Monitor websites and APIs without an account. Responsive static frontend hosted on GitHub Pages, with a separate Cloudflare Worker.
 
-## What works
-- Responsive dashboard and monitor management (max 20)
-- Add, edit, remove and manually check website addresses
-- Browser-local history and incidents, with backup export/import
-- Automatic checks every 5 minutes **while the page is open**, once a Worker is configured
-- Explicit unknown state when a check cannot be completed
+**Frontend:** https://bpsbeast.github.io/pulse-monitor/  
+**API:** https://pulse-monitor.brunofranciscospinto.workers.dev
 
-## Architecture
-Static frontend: `index.html`, `styles.css`, `app.js`, hosted on GitHub Pages.
-Persistence: browser `localStorage` (device and browser specific).
-Optional backend: Cloudflare Worker in `worker/`, making remote HTTP HEAD checks.
+## Current implementation
+- Add, edit and delete up to 20 monitors locally.
+- HTTP checks use a Cloudflare Worker, configured automatically on first load.
+- Online means a successful 2xx/3xx HTTP response (redirects are treated as unknown because they are deliberately not followed).
+- A server 5xx is an offline signal; 4xx and connectivity errors are indeterminate. Websites rejecting HEAD with 405/501 are retried with GET.
+- Two consecutive offline signals are required to declare an incident; recovery also takes two consecutive online signals.
+- Checking every 5 minutes while the tab is active. **No 24/7 monitoring when the browser is closed.**
+- Individual checks, recent activity, incidents, export/import.
+- Monitor preferences and settings in localStorage. Historical checks in IndexedDB with localStorage fallback. Browser deletion removes local data.
+- API rejects invalid schemes, credentials, custom ports, IP literals and non-public DNS responses, with no redirects and a rate limiter.
 
-## Publish frontend
-Open repository Settings → Pages → Build and deployment → Source: **GitHub Actions**.
-The workflow in `.github/workflows/pages.yml` deploys the main branch.
-Expected URL: https://bpsbeast.github.io/pulse-monitor/
+## Run locally
+Open `index.html` in a modern browser (or start a local static server). The remote API requires the configured GitHub Pages origin for its CORS allowlist; local browsers cannot run live checks against the production API without changing the allowed origin.
 
-## Deploy the Worker
-Requires a Cloudflare account and Wrangler (not deployed automatically).
-1. `cd worker`
-2. `npx wrangler login`
-3. `npx wrangler deploy`
-4. Copy the `https://...workers.dev` endpoint into PULSE → Definições.
+## Deployment
+GitHub Pages is deployed from the main branch using the GitHub Actions workflow. Cloudflare connects to the same repo with **root directory: `worker`**, deploy command `npx wrangler deploy --name pulse-monitor`. The worker's config is `worker/wrangler.toml`.
 
-`ALLOWED_ORIGIN` must match the exact frontend origin (without its path), currently `https://bpsbeast.github.io`.
+Do not expose a new staging deployment with permissive CORS or a disabled rate limiter. API config uses `ALLOWED_ORIGIN=https://bpsbeast.github.io` and `CHECK_LIMITER`.
 
-## Important limitations
-- The site **does not** monitor after the browser is closed.
-- Nothing is checked until the Cloudflare Worker has been deployed and configured.
-- Browser storage can be deleted by the user; export regularly.
-- This early MVP does not provide server-side notification delivery, SSL certificate inspection, or uptime statistics for periods that were not measured.
-- No API endpoint should be treated as secure based on CORS alone; for public deployment add Cloudflare rate limiting, abuse protection, robust network egress safeguards and operational monitoring.
-- HEAD requests may be unsupported by some sites. Manual redirects are not followed to prevent unsafe unvalidated destinations.
-- An HTTP error is a confirmed server response, but some website policies and anti-bot features can produce false outage indications. Confirmations and improved classification are planned.
+## Tests
+Run `node --check app.js` and `node --test tests/*.test.mjs` in Node 22. These commands also run in the CI workflow `.github/workflows/tests.yml`.
 
-## Project status
-MVP frontend committed. Hosted publication and Worker deployment must be verified separately.
+## Security and known limitations
+- CORS is not authentication; other HTTP clients can supply an Origin header.
+- Native Cloudflare rate limiting is approximate and applies per Cloudflare location, not as a strict global quota. Additional WAF and account-level protections are recommended. <https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/>
+- DNS preflight **does not fully prevent DNS rebinding**, because the lookup is not pinned to the subsequent connection. Do not present this as complete SSRF protection; require network-level private egress isolation or pin-and-validate all actual connections before considering open URL checking production-hardened.
+- Automatic monitoring is not active with the browser closed. The uptime percentage for unmeasured periods must never be inferred.
+- Cross-browser syncing, notifications, certificate-expiration checks, and multiple-region monitoring are not implemented.
+- The Worker intentionally avoids following HTTP redirects. 4xx and redirects are indeterminate, which may differ from other uptime monitors.
+- Production endpoint testing needs live Cloudflare/GitHub Pages access; committed unit tests are not a substitute for end-to-end testing.
+
+The project is an MVP under active development.
