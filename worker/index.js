@@ -49,7 +49,7 @@ async function lookupDns(host,type){
   try{
    const req=new URL(provider.base);
    req.searchParams.set("name",host);req.searchParams.set("type",type);
-   const response=await fetch(req.href,{headers:provider.headers,signal:AbortSignal.timeout(2500),redirect:"error"});
+   const response=await fetch(req.href,{headers:provider.headers,signal:AbortSignal.timeout(2500),redirect:"manual"});
    if(!response.ok)continue;
    const payload=await response.json();
    if(![0,3].includes(payload.Status))continue;
@@ -66,7 +66,7 @@ async function debugDnsProviders(){
  const out=[];
  for(const [provider,url,accept] of cases){
   try{
-   const response=await fetch(url,{headers:{Accept:accept},redirect:"error",signal:AbortSignal.timeout(3000)});
+   const response=await fetch(url,{headers:{Accept:accept},redirect:"manual",signal:AbortSignal.timeout(3000)});
    const body=await response.text();
    let parsed={};try{parsed=JSON.parse(body)}catch{}
    out.push({provider,httpStatus:response.status,dnsStatus:parsed.Status??null,answers:(parsed.Answer||[]).filter(x=>x.type===1||x.type===28).length,
