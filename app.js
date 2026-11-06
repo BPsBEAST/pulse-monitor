@@ -47,19 +47,22 @@ async function commit(mutator){
 }
 function setStorageMessage(message,warning=false){
  const el=$("storageNotice");
- el.classList.remove("hidden");
- el.innerHTML='<span class="banner-icon">'+(warning?"⚠":"ⓘ")+'</span><div><strong>'+esc(warning?"Atenção ao armazenamento":"Os teus websites ficam guardados neste browser")+'</strong><p>'+esc(message)+'</p></div>';
+ // A informação normal sobre armazenamento fica junto ao formulário principal.
+ // Só interrompemos a experiência com um aviso quando existe um problema real.
+ el.classList.toggle("hidden",!warning);
+ el.innerHTML=warning?'<span class="banner-icon">⚠</span><div><strong>Não foi possível garantir a gravação</strong><p>'+esc(message)+'</p></div>':"";
 }
 function label(m){
  if(inFlight.has(m.id))return ["checking","◷ A verificar"];
  if(m.paused)return ["unknown","Ⅱ Pausado"];
- return m.status==="online"?["up","● Online"]:m.status==="offline"?["down","● Offline"]:["unknown","○ Desconhecido"];
+ return m.status==="online"?["up","● Online"]:m.status==="offline"?["down","● Indisponível"]:["unknown",m.checkedAt?"○ Estado inconclusivo":"○ Por verificar"];
 }
 function monitorHtml(m){
  const [cls,text]=label(m);
- return '<div class="monitor"><div class="monitor-main"><div class="site-avatar">◉</div><div class="site-details"><strong>'+esc(m.name||new URL(m.url).hostname)+'</strong><small>'+esc(m.url)+'</small><small>Última verificação: '+when(m.checkedAt)+'</small></div></div><div class="monitor-right"><span class="status '+cls+'">'+text+(m.status==="online"&&Number.isFinite(m.ms)?" · "+m.ms+" ms":"")+'</span><div class="monitor-actions"><button class="mini-btn" data-action="check" data-id="'+esc(m.id)+'" title="Verificar agora" '+(inFlight.has(m.id)?"disabled":"")+'>↻</button> <button class="mini-btn" data-action="pause" data-id="'+esc(m.id)+'">'+(m.paused?"Retomar":"Pausar")+'</button> <button class="mini-btn" data-action="external" data-id="'+esc(m.id)+'">Diagnóstico ↗</button> <button class="mini-btn" data-action="edit" data-id="'+esc(m.id)+'">Editar</button> <button class="mini-btn danger" data-action="delete" data-id="'+esc(m.id)+'" aria-label="Eliminar website">×</button></div></div></div>';
+ return '<div class="monitor"><div class="monitor-main"><div class="site-avatar">◉</div><div class="site-details"><strong>'+esc(m.name||new URL(m.url).hostname)+'</strong><small>'+esc(m.url)+'</small><small>Última verificação: '+when(m.checkedAt)+'</small></div></div><div class="monitor-right"><span class="status '+cls+'">'+text+(m.status==="online"&&Number.isFinite(m.ms)?" · "+m.ms+" ms":"")+'</span><div class="monitor-actions"><button class="mini-btn" data-action="check" data-id="'+esc(m.id)+'" title="Verificar agora" '+(inFlight.has(m.id)?"disabled":"")+'>↻ Verificar</button> <button class="mini-btn" data-action="pause" data-id="'+esc(m.id)+'">'+(m.paused?"Retomar":"Pausar")+'</button> <button class="mini-btn" data-action="external" data-id="'+esc(m.id)+'">Diagnóstico externo ↗</button> <button class="mini-btn" data-action="edit" data-id="'+esc(m.id)+'">Editar</button> <button class="mini-btn danger" data-action="delete" data-id="'+esc(m.id)+'" aria-label="Eliminar website">×</button></div></div></div>';
 }
 const empty=text=>'<div class="empty"><span class="empty-icon">◎</span>'+esc(text)+'</div>';
+const emptyMonitors=()=>'<div class="monitor-empty"><div class="empty-symbol">◉</div><h3>Ainda não tens websites</h3><p>Adiciona o teu primeiro website para começares a acompanhar a disponibilidade e a latência.</p><button type="button" class="subtle" data-action="add-empty">＋ Adicionar website</button></div>';
 function render(){
  $("totalStat").textContent=state.monitors.length;
  const up=state.monitors.filter(m=>!m.paused&&m.status==="online").length;
@@ -67,7 +70,7 @@ function render(){
  $("upStat").textContent=up;$("downStat").textContent=down;
  const latest=state.monitors.filter(m=>m.status==="online"&&Number.isFinite(m.ms)).map(m=>m.ms);
  $("latencyStat").textContent=latest.length?Math.round(latest.reduce((a,b)=>a+b,0)/latest.length)+" ms":"—";
- const monitors=state.monitors.map(monitorHtml).join("")||empty("Ainda não existem websites guardados. Adiciona o teu primeiro monitor.");
+ const monitors=state.monitors.map(monitorHtml).join("")||emptyMonitors();
  $("overviewMonitors").innerHTML=monitors;$("websitesMonitors").innerHTML=monitors;
  $("websitesCount").textContent=state.monitors.length+" guardados neste browser";
  const historyRow=h=>'<div class="entry"><div><b class="'+(h.status==="online"?"green":h.status==="offline"?"red":"muted")+'">'+esc(h.status==="online"?"● Online":h.status==="offline"?"● HTTP 5xx":"○ Indeterminado")+'</b> · '+esc(h.name||h.url)+(Number.isInteger(h.code)?" · HTTP "+h.code:"")+(Number.isFinite(h.ms)?" · "+h.ms+" ms":"")+'</div><time>'+when(h.at)+'</time></div>';
@@ -94,7 +97,7 @@ function render(){
 function navigate(to){
  page=to;for(const id of ["overview","websites","history","incidents","notifications","settings"]){const el=$(id+"Page");if(el)el.classList.toggle("hidden",id!==to)}
  document.querySelectorAll(".nav").forEach(b=>b.classList.toggle("active",b.dataset.page===to));
- const titles={overview:["Dashboard","Uma visão clara do estado dos teus websites."],websites:["Websites","Websites guardados e verificações manuais."],history:["Histórico","Apenas medições realmente realizadas."],incidents:["Incidentes","Falhas confirmadas e recuperações."],notifications:["Notificações","Alertas enquanto estás a utilizar o PULSE."],settings:["Definições","Dados locais, cópias de segurança e intervalos."]};
+ const titles={overview:["Visão geral","Acompanha a disponibilidade e o tempo de resposta dos teus websites."],websites:["Websites","Websites guardados e verificações manuais."],history:["Histórico","Apenas medições realmente realizadas."],incidents:["Incidentes","Falhas confirmadas e recuperações."],notifications:["Notificações","Alertas enquanto estás a utilizar o PULSE."],settings:["Definições","Dados locais, cópias de segurança e intervalos."]};
  $("pageTitle").textContent=titles[to][0];$("pageDescription").textContent=titles[to][1];
  $("addTop").classList.remove("hidden");render();window.scrollTo({top:0,behavior:"smooth"});
 }
@@ -161,20 +164,27 @@ $("addForm").addEventListener("submit",async event=>{
  }catch(e){$("formError").textContent=e.message}
  finally{submit.disabled=false}
 });
-$("quickAddForm").addEventListener("submit",async event=>{
- event.preventDefault();
- if(!ready)return;
- const input=$("quickAddUrl"),submit=event.currentTarget.querySelector('[type="submit"]');
- submit.disabled=true;$("quickAddError").textContent="";
- try{
-  const monitor=await commit(s=>registerMonitor(s,input.value.trim()));
-  input.value="";toast("✓ Website adicionado e guardado: "+monitor.url);
-  void checkOne(monitor.id,{manual:true});
- }catch(error){$("quickAddError").textContent=error.message}
- finally{submit.disabled=false}
-});
+function wireQuickAdd(formId,inputId,errorId){
+ $(formId).addEventListener("submit",async event=>{
+  event.preventDefault();
+  if(!ready)return;
+  const input=$(inputId),submit=event.currentTarget.querySelector('[type="submit"]');
+  submit.disabled=true;$(errorId).textContent="";
+  try{
+   const monitor=await commit(s=>registerMonitor(s,input.value.trim()));
+   input.value="";
+   navigate("websites");
+   toast("✓ Website guardado! Agora podes acompanhar "+monitor.url);
+   void checkOne(monitor.id,{manual:true});
+  }catch(error){$(errorId).textContent=error.message}
+  finally{submit.disabled=false}
+ });
+}
+wireQuickAdd("dashboardAddForm","dashboardAddUrl","dashboardAddError");
+wireQuickAdd("quickAddForm","quickAddUrl","quickAddError");
 document.addEventListener("click",async e=>{
  const btn=e.target.closest("[data-action]");if(!btn)return;
+ if(btn.dataset.action==="add-empty"){openDialog();return}
  const m=state.monitors.find(x=>x.id===btn.dataset.id);if(!m)return;
  if(btn.dataset.action==="check")return void checkOne(m.id,{manual:true});
  if(btn.dataset.action==="edit")return openDialog(m);
