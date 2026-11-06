@@ -66,6 +66,15 @@ test("quick website form saves a second domain, without changing the API",async(
  assert.equal(data.api,"https://pulse-monitor.brunofranciscospinto.workers.dev");
  assert.match(element("websitesMonitors").innerHTML,/example.org/);
 });
+test("main dashboard form saves a website and navigates to the saved list",async()=>{
+ element("dashboardAddUrl").value="https://example.net";
+ await element("dashboardAddForm").handlers.submit({preventDefault(){},currentTarget:{querySelector(){return {disabled:false}}}});
+ const saved=JSON.parse(kv.get("pulse:v2"));
+ assert.ok(saved.monitors.some(m=>m.url==="https://example.net/"));
+ assert.equal(element("pageTitle").textContent,"Websites");
+ assert.match(element("websitesMonitors").innerHTML,/example.net/);
+ assert.match(element("toast").textContent,/Website guardado/);
+});
 test.after(()=>{
  globalThis.setInterval=realSetInterval;
  globalThis.setTimeout=realSetTimeout;
