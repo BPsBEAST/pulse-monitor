@@ -51,6 +51,14 @@ function render(){
  if(cards)cards.innerHTML=[["24 horas",86400000],["7 dias",7*86400000],["30 dias",30*86400000]].map(([name,period])=>{
   const info=summary(state.history,period);return '<div class="period"><span>'+name+'</span><strong>'+(info.uptime===null?"—":info.uptime.toFixed(1)+"%")+'</strong><small>'+info.checks+' verificações · '+(info.avgMs===null?"sem latência":info.avgMs+" ms")+'</small></div>';
  }).join("");
+ const chart=$("latencyChart");
+ if(chart){
+   const points=state.history.filter(x=>x.status==="online"&&Number.isFinite(x.ms)).slice(0,40).reverse();
+   if(points.length){
+     const max=Math.max(50,...points.map(x=>x.ms));
+     chart.innerHTML='<div class="latency-bars" role="img" aria-label="Gráfico de '+points.length+' medições reais de latência">'+points.map(x=>'<div class="latency-bar" style="height:'+Math.max(7,Math.round(100*x.ms/max))+'%" title="'+x.ms+' ms · '+when(x.at)+'"></div>').join("")+'</div><p class="muted small">Últimas '+points.length+' respostas online · máximo '+max+' ms</p>';
+   }else chart.innerHTML=empty("Ainda não existem medições de latência.");
+ }
  if($("notificationsList"))$("notificationsList").innerHTML=state.notifications.map(n=>'<div class="entry"><div>'+esc(n.message)+'</div><time>'+when(n.at)+'</time></div>').join("")||empty("Não existem notificações.");
  $("backendBanner").classList.toggle("hidden",!!state.api);
  if($("apiInput")&&page==="settings"&&document.activeElement!==$("apiInput"))$("apiInput").value=state.api;
