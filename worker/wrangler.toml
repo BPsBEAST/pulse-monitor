@@ -5,3 +5,11 @@ workers_dev = true
 
 [vars]
 ALLOWED_ORIGIN = "https://bpsbeast.github.io"
+
+# Approximate per-client limit at each Cloudflare location (not a global hard cap).
+[[ratelimits]]
+name = "CHECK_LIMITER"
+namespace_id = "1001"
+[ratelimits.simple]
+limit = 30
+period = 60
