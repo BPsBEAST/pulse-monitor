@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {latencySvg,chartModel} from "../pulse-viz.mjs";
 import {diagnosticsHtml} from "../pulse-diagnostics.mjs";
 test("charts have an empty state when there are no real observations",()=>{
- assert.match(latencySvg([],86400000),/Ainda não existem dados suficientes/);
+ assert.match(latencySvg([],86400000),/Ainda sem medições HTTP/);
  assert.equal(chartModel([],86400000).length,0);
 });
 test("charts include only real online measurements",()=>{
