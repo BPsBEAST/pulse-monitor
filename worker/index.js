@@ -161,6 +161,7 @@ export default {
       "Access-Control-Allow-Headers":"Content-Type","Vary":"Origin"}});
     if(request.method!=="GET")return json({error:"Method not allowed"},405,origin);
     const incoming=new URL(request.url);
+    if(incoming.pathname==="/health")return json({service:"PULSE",version:"0.7",status:"ok"},200,origin);
     if(!["/check","/diagnostics","/ip-info"].includes(incoming.pathname))return json({error:"Not found"},404,origin);
     if(!env.CHECK_LIMITER)return json({error:"Rate limiter not configured"},503,origin);
     const client=request.headers.get("CF-Connecting-IP")||"unknown";
