@@ -6,7 +6,7 @@ const INVALID_SUFFIX=/\.(localhost|local|internal|test|invalid|example|onion|hom
 export function normalizeUrl(input){
   if(typeof input!=="string"||input.length>2048)throw Error("Endereço inválido ou demasiado longo.");
   const raw=input.trim();
-  if(/^\\d{1,3}(?:\\.\\d{1,3}){3}$/.test(raw)||/^https?:\\/\\/\\d{1,3}(?:\\.\\d{1,3}){3}(?:\\/|$)/i.test(raw))
+  if(/^\d{1,3}(?:\.\d{1,3}){3}$/.test(raw)||/^https?:\/\/\d{1,3}(?:\.\d{1,3}){3}(?:\/|$)/i.test(raw))
     throw Error("Para consultar um endereço IP público, abre Diagnóstico → Informação de um IP. Para monitorizar, introduz um domínio.");
   let u;try{u=new URL(raw)}catch{throw Error("Introduz um URL completo, por exemplo https://exemplo.pt")}
   if(!["http:","https:"].includes(u.protocol)||u.username||u.password||u.port)throw Error("Usa HTTP ou HTTPS, sem credenciais nem portas personalizadas.");
