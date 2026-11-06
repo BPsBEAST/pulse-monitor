@@ -70,6 +70,46 @@ async function dnsDetails(host,basic){
   ttl:Number.isInteger(rr.TTL)?Math.min(86400,Math.max(0,rr.TTL)):null
  })).filter(rr=>{const key=rr.type+"|"+rr.value;if(seen.has(key))return false;seen.add(key);return true}).slice(0,50);
 }
+function validatePublicIP(input){
+ const value=String(input||"").trim();
+ if(!value||value.length>45)throw Error("invalid-ip");
+ if(/^\d{1,3}(?:\.\d{1,3}){3}$/.test(value)){
+  if(privateIpv4(value))throw Error("unsafe-ip");
+  return {ip:value,family:4,query:value.split(".").reverse().join(".")+".origin.asn.cymru.com"};
+ }
+ if(!/^[0-9a-f:]+$/i.test(value)||!value.includes(":"))throw Error("invalid-ip");
+ let parts=value.toLowerCase().split("::");
+ if(parts.length>2)throw Error("invalid-ip");
+ const left=parts[0]?parts[0].split(":"):[],right=parts.length===2&&parts[1]?parts[1].split(":"):[];
+ if([...left,...right].some(x=>!x||x.length>4||!/^[0-9a-f]+$/.test(x)))throw Error("invalid-ip");
+ const zeros=8-left.length-right.length;
+ if(zeros<0||(parts.length===1&&zeros!==0)||(parts.length===2&&zeros<1))throw Error("invalid-ip");
+ const groups=[...left,...Array(zeros).fill("0"),...right].map(x=>x.padStart(4,"0"));
+ const normalized=groups.join(":");
+ if(!publicIpv6(normalized))throw Error("unsafe-ip");
+ return {ip:value,family:6,query:groups.join("").split("").reverse().join(".")+".origin6.asn.cymru.com"};
+}
+function txtString(data){
+ return String(data||"").replace(/"\s+"/g,"").replace(/^"|"$/g,"").slice(0,500);
+}
+async function ipOwnership(raw){
+ const target=validatePublicIP(raw);
+ const origin=await lookupDns(target.query,"TXT");
+ const txt=origin.find(x=>x.type===16);
+ if(!txt)return {ip:target.ip,family:target.family,found:false};
+ const parts=txtString(txt.data).split("|").map(x=>x.trim());
+ const asn=/^\d+(?:\s+\d+)*$/.test(parts[0]||"")?parts[0]:null;
+ let organization=null;
+ if(asn){
+  const nameResult=await lookupDns("AS"+asn.split(" ")[0]+".asn.cymru.com","TXT").catch(()=>[]);
+  const nameTxt=nameResult.find(x=>x.type===16);
+  if(nameTxt)organization=txtString(nameTxt.data).split("|").slice(4).join("|").trim().slice(0,180)||null;
+ }
+ return {ip:target.ip,family:target.family,found:true,
+  asn,prefix:(parts[1]||"").slice(0,65),country:(parts[2]||"").slice(0,8),
+  registry:(parts[3]||"").slice(0,30),allocated:(parts[4]||"").slice(0,40),
+  organization,source:"Team Cymru IP-to-ASN DNS (dados de encaminhamento BGP)"};
+}
 async function probeHttp(target,withHeaders=false){
  const started=Date.now();
  try{
@@ -110,11 +150,15 @@ export default {
       "Access-Control-Allow-Headers":"Content-Type","Vary":"Origin"}});
     if(request.method!=="GET")return json({error:"Method not allowed"},405,origin);
     const incoming=new URL(request.url);
-    if(!["/check","/diagnostics"].includes(incoming.pathname))return json({error:"Not found"},404,origin);
+    if(!["/check","/diagnostics","/ip-info"].includes(incoming.pathname))return json({error:"Not found"},404,origin);
     if(!env.CHECK_LIMITER)return json({error:"Rate limiter not configured"},503,origin);
     const client=request.headers.get("CF-Connecting-IP")||"unknown";
     const decision=await env.CHECK_LIMITER.limit({key:client});
     if(!decision.success)return json({error:"Too many requests"},429,origin,{"Retry-After":"60"});
+    if(incoming.pathname==="/ip-info"){
+      try{return json(await ipOwnership(incoming.searchParams.get("ip")),200,origin)}
+      catch(error){return json({error:error.message==="unsafe-ip"?"Private or special-purpose IP denied":"Invalid or unavailable IP lookup"},400,origin)}
+    }
     let target;
     try{target=parseTarget(incoming.searchParams.get("url"))}
     catch{return json({error:"Invalid public HTTP(S) URL"},400,origin)}
