@@ -1,0 +1,40 @@
+name: Live PULSE Worker smoke test
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "worker/**"
+      - ".github/workflows/live-smoke.yml"
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check public Worker endpoints
+        shell: bash
+        run: |
+          set -euo pipefail
+          API="https://pulse-monitor.brunofranciscospinto.workers.dev"
+          ORIGIN="https://bpsbeast.github.io"
+          echo "Checking the live PULSE Worker (only publicly documented example targets)"
+          for route in "/check?url=https%3A%2F%2Fexample.com%2F" "/ip-info?ip=1.1.1.1"; do
+            echo "::group::Endpoint ${route%%\?*}"
+            tmp=$(mktemp)
+            status=$(curl -sS --max-time 18 -H "Origin: $ORIGIN" -H "Accept: application/json" -o "$tmp" -w "%{http_code}" "$API$route" || true)
+            echo "HTTP status: $status"
+            cat "$tmp" || true
+            echo
+            if [ "$status" != "200" ]; then
+              echo "::error::Endpoint ${route%%\?*} returned $status (check Cloudflare deployment)"
+              exit 1
+            fi
+            if ! grep -q '"status"\|"ip"' "$tmp"; then
+              echo "::error::Unexpected endpoint response"
+              exit 1
+            fi
+            rm "$tmp"
+            echo "::endgroup::"
+          done
