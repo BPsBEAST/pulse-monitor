@@ -58,11 +58,11 @@ function setStorageMessage(message,warning=false){
 function label(m){
  if(inFlight.has(m.id))return ["checking","◷ A verificar"];
  if(m.paused)return ["unknown","Ⅱ Pausado"];
- return m.status==="online"?["up","● Online"]:m.status==="offline"?["down","● Indisponível"]:["unknown",m.checkedAt?"○ Estado inconclusivo":"○ Por verificar"];
+ return m.status==="online"?["up","● Online"]:m.status==="offline"?["down","● Indisponível"]:["unknown",Number.isInteger(m.code)?"○ HTTP "+m.code:m.checkedAt?"○ Sem resposta conclusiva":"○ Por verificar"];
 }
 function monitorHtml(m){
  const [cls,text]=label(m);
- return '<div class="monitor"><div class="monitor-main"><div class="site-avatar">◉</div><div class="site-details"><strong>'+esc(m.name||new URL(m.url).hostname)+'</strong><small>'+esc(m.url)+'</small><small>Última verificação: '+when(m.checkedAt)+'</small></div></div><div class="monitor-right"><span class="status '+cls+'">'+text+(m.status==="online"&&Number.isFinite(m.ms)?" · "+m.ms+" ms":"")+'</span><div class="monitor-actions"><button class="mini-btn" data-action="check" data-id="'+esc(m.id)+'" title="Verificar agora" '+(inFlight.has(m.id)?"disabled":"")+'>↻ Verificar</button> <button class="mini-btn" data-action="pause" data-id="'+esc(m.id)+'">'+(m.paused?"Retomar":"Pausar")+'</button> <button class="mini-btn diag-action" data-action="diagnose" data-id="'+esc(m.id)+'">⌘ Diagnóstico</button> <button class="mini-btn" data-action="external" data-id="'+esc(m.id)+'">Check-Host ↗</button> <button class="mini-btn" data-action="edit" data-id="'+esc(m.id)+'">Editar</button> <button class="mini-btn danger" data-action="delete" data-id="'+esc(m.id)+'" aria-label="Eliminar website">×</button></div></div></div>';
+ return '<div class="monitor"><div class="monitor-main"><div class="site-avatar">◉</div><div class="site-details"><strong>'+esc(m.name||new URL(m.url).hostname)+'</strong><small>'+esc(m.url)+'</small><small>Última verificação: '+when(m.checkedAt)+'</small>'+(m.lastError?'<small class="monitor-error">'+esc(m.lastError)+'</small>':"")+'</div></div><div class="monitor-right"><span class="status '+cls+'">'+text+(m.status==="online"&&Number.isFinite(m.ms)?" · "+m.ms+" ms":"")+'</span><div class="monitor-actions"><button class="mini-btn" data-action="check" data-id="'+esc(m.id)+'" title="Verificar agora" '+(inFlight.has(m.id)?"disabled":"")+'>↻ Verificar</button> <button class="mini-btn" data-action="pause" data-id="'+esc(m.id)+'">'+(m.paused?"Retomar":"Pausar")+'</button> <button class="mini-btn diag-action" data-action="diagnose" data-id="'+esc(m.id)+'">⌘ Diagnóstico</button> <button class="mini-btn" data-action="external" data-id="'+esc(m.id)+'">Check-Host ↗</button> <button class="mini-btn" data-action="edit" data-id="'+esc(m.id)+'">Editar</button> <button class="mini-btn danger" data-action="delete" data-id="'+esc(m.id)+'" aria-label="Eliminar website">×</button></div></div></div>';
 }
 const empty=text=>'<div class="empty"><span class="empty-icon">◎</span>'+esc(text)+'</div>';
 const emptyMonitors=()=>'<div class="monitor-empty"><div class="empty-symbol">◉</div><h3>Ainda não tens websites</h3><p>Adiciona o teu primeiro website para começares a acompanhar a disponibilidade e a latência.</p><button type="button" class="subtle" data-action="add-empty">＋ Adicionar website</button></div>';
@@ -71,17 +71,18 @@ function render(){
  const up=state.monitors.filter(m=>!m.paused&&m.status==="online").length;
  const down=state.monitors.filter(m=>!m.paused&&m.status==="offline").length;
  $("upStat").textContent=up;$("downStat").textContent=down;
- const latest=state.monitors.filter(m=>m.status==="online"&&Number.isFinite(m.ms)).map(m=>m.ms);
+ const latest=state.monitors.filter(m=>Number.isInteger(m.code)&&Number.isFinite(m.ms)).map(m=>m.ms);
  $("latencyStat").textContent=latest.length?Math.round(latest.reduce((a,b)=>a+b,0)/latest.length)+" ms":"—";
  $("heroChart").innerHTML=latencySvg(state.history,graphPeriod);
- $("chartSampleCount").textContent=chartModel(state.history,graphPeriod).length+" medições de latência no período selecionado";
+ const chartCount=chartModel(state.history,graphPeriod).length;
+ $("chartSampleCount").textContent=chartCount?chartCount+" respostas HTTP medidas neste período":"Sem respostas HTTP medidas neste período";
  document.querySelectorAll(".chart-period").forEach(btn=>btn.classList.toggle("active",Number(btn.dataset.period)===graphPeriod));
  const makeCard=m=>{
   const records=state.history.filter(h=>h.id===m.id&&(h.status==="online"||h.status==="offline"));
   const percent=records.length?(100*records.filter(x=>x.status==="online").length/records.length):null;
   const cls=m.paused?"unknown":m.status==="online"?"up":m.status==="offline"?"down":"unknown";
-  const status=m.paused?"Pausado":m.status==="online"?"Online":m.status==="offline"?"Indisponível":m.checkedAt?"Inconclusivo":"Por verificar";
-  return '<button type="button" class="service-status-card panel" data-action="diagnose" data-id="'+esc(m.id)+'"><div class="service-top"><span class="service-name">'+esc(m.name||new URL(m.url).hostname)+'</span><span class="service-arrow">↗</span></div><span class="service-address">'+esc(new URL(m.url).hostname)+'</span><span class="service-status '+cls+'"><i class="status-led"></i>'+status+'</span><div class="service-track"><span style="width:'+(percent===null?0:percent.toFixed(1))+'%"></span></div><div class="service-foot"><span>'+(percent===null?"Sem medições":percent.toFixed(1)+"% das verificações")+'</span><span>'+(Number.isFinite(m.ms)?m.ms+" ms":"—")+'</span></div></button>';
+  const status=m.paused?"Pausado":m.status==="online"?"Online":m.status==="offline"?"Indisponível":Number.isInteger(m.code)?"HTTP "+m.code:m.checkedAt?"Sem resposta":"Por verificar";
+  return '<button type="button" class="service-status-card panel" data-action="diagnose" data-id="'+esc(m.id)+'"><div class="service-top"><span class="service-name">'+esc(m.name||new URL(m.url).hostname)+'</span><span class="service-arrow">↗</span></div><span class="service-address">'+esc(new URL(m.url).hostname)+'</span><span class="service-status '+cls+'"><i class="status-led"></i>'+status+'</span><div class="service-track"><span style="width:'+(percent===null?0:percent.toFixed(1))+'%"></span></div><div class="service-foot"><span>'+(percent===null?"Sem medições":percent.toFixed(1)+"% das verificações")+'</span><span>'+(Number.isInteger(m.code)&&Number.isFinite(m.ms)?m.ms+" ms":"—")+'</span></div></button>';
  };
  const visibleServices=state.monitors.slice(0,4);
  const addSlot='<button type="button" class="service-placeholder" data-action="add-empty"><div class="service-top"><span class="service-name">Novo serviço</span><span class="service-arrow">＋</span></div><span class="service-address">Monitoriza outro website</span><span class="placeholder-plus">＋</span><div class="service-foot"><span>Adicionar monitor</span><span>↗</span></div></button>';
@@ -102,7 +103,7 @@ function render(){
  }).join("");
  const chart=$("latencyChart");
  if(chart){
-   const points=state.history.filter(x=>x.status==="online"&&Number.isFinite(x.ms)).slice(0,40).reverse();
+   const points=chartModel(state.history,30*86400000).slice(-40);
    if(points.length){
      const max=Math.max(50,...points.map(x=>x.ms));
      chart.innerHTML='<div class="latency-bars" role="img" aria-label="Gráfico de '+points.length+' medições reais de latência">'+points.map(x=>'<div class="latency-bar" style="height:'+Math.max(7,Math.round(100*x.ms/max))+'%" title="'+x.ms+' ms · '+when(x.at)+'"></div>').join("")+'</div><p class="muted small">Últimas '+points.length+' respostas online · máximo '+max+' ms</p>';
@@ -138,11 +139,15 @@ async function checkOne(id,{manual=false}={}){
  let result={status:"unknown",code:null,ms:null};
  try{
   const response=await fetch(state.api+"/check?url="+encodeURIComponent(m.url),{signal:controller.signal,headers:{Accept:"application/json"}});
-  if(!response.ok)throw Error("O serviço respondeu HTTP "+response.status);
-  const body=await response.json();
+  const body=await response.json().catch(()=>({}));
+  if(!response.ok)throw Error(response.status===404?"O backend de monitorização ainda não está atualizado na Cloudflare.":response.status===429?"Limite de pedidos excedido. Tenta novamente daqui a um minuto.":body.error||"A API respondeu HTTP "+response.status);
   if(!["online","offline","unknown"].includes(body.status))throw Error("Resposta inválida da API");
-  result={status:body.status,code:body.code,ms:body.ms};
- }catch(e){if(manual)toast("Não foi possível verificar: "+e.message)}
+  result={status:body.status,code:body.code,ms:body.ms,error:body.error||null};
+  if(manual&&result.status==="unknown"&&result.error)toast("Verificação inconclusiva: "+result.error);
+ }catch(e){
+  result.error=e.name==="AbortError"?"Tempo de espera esgotado ao contactar o backend.":e.message;
+  if(manual)toast("Não foi possível verificar: "+result.error);
+ }
  finally{
   clearTimeout(timeout);inFlight.delete(id);
   try{const note=await commit(s=>applyCheck(s,id,result));notify(note)}
@@ -241,7 +246,7 @@ async function runIpLookup(ip){
   if(typeof data.ip!=="string")throw Error("Resposta inesperada da API.");
   $("ipLookupResults").innerHTML=ipInfoHtml(data);
  }catch(error){
-  $("ipLookupError").textContent=error.name==="AbortError"?"A consulta excedeu o tempo limite.":error.message;
+  $("ipLookupError").textContent=error.name==="AbortError"?"A consulta excedeu o tempo limite.":error.message.includes("Failed to fetch")?"Não foi possível contactar a Cloudflare. Confirma a ligação ao servidor e tenta novamente.":error.message;
   $("ipLookupResults").innerHTML="";
  }finally{clearTimeout(timer);$("ipLookupBtn").disabled=false}
 }
@@ -335,6 +340,8 @@ if($("enableAlerts"))$("enableAlerts").onclick=async()=>{
   setStorageMessage("Os websites são guardados neste browser, não num servidor. Em navegação anónima podem desaparecer quando fechas a sessão. Exporta uma cópia nas Definições.",!loaded.hasPersistentStore);
   if(!loaded.hasPersistentStore)toast("O browser pode estar a bloquear o armazenamento. Verifica as permissões.");
   render();schedule();
+  const needsRefresh=state.monitors.some(m=>!m.paused&&(!m.checkedAt||Date.now()-m.checkedAt>=state.intervalMinutes*60000));
+  if(needsRefresh&&state.api&&!document.hidden)setTimeout(()=>void checkAll(),900);
   if(recovery.recovered){
     navigate("websites");
     toast("✓ Recuperámos formacao.inem.pt e restaurámos a API do PULSE.");
