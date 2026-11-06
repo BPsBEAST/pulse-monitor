@@ -83,3 +83,33 @@ test("redirects remain unknown in diagnostics",()=>withMock(async()=>new Respons
  assert.equal(body.http.redirectHost,"127.0.0.1");
  assert.ok(!JSON.stringify(body).includes("token=private"));
 }));
+
+test("passive public IP lookup returns ASN without connecting to the IP",async()=>{
+ const original=globalThis.fetch;let calls=[];
+ globalThis.fetch=async(url)=>{
+  calls.push(String(url));
+  const dns=new URL(url),name=dns.searchParams.get("name");
+  const data=name?.includes("origin.asn.cymru.com")
+   ?[{type:16,data:'"13335 | 1.1.1.0/24 | AU | apnic | 2011-08-11"'}]
+   :[{type:16,data:'"13335 | US | arin | 2010-07-14 | CLOUDFLARENET"'}];
+  return new Response(JSON.stringify({Status:0,Answer:data}),{status:200});
+ };
+ try{
+  const url="https://pulse-monitor.example.workers.dev/ip-info?ip=1.1.1.1";
+  const response=await worker.fetch(makeRequest(url),env);
+  const body=await response.json();
+  assert.equal(response.status,200);
+  assert.equal(body.ip,"1.1.1.1");
+  assert.equal(body.asn,"13335");
+  assert.equal(body.prefix,"1.1.1.0/24");
+  assert.equal(body.organization,"CLOUDFLARENET");
+  assert.ok(calls.every(u=>u.startsWith("https://cloudflare-dns.com/dns-query")));
+ }finally{globalThis.fetch=original}
+});
+test("private IP lookups are blocked before external queries",async()=>{
+ for(const ip of ["127.0.0.1","10.2.3.4","192.168.0.1","169.254.169.254","::1","fc00::1"]){
+  const url="https://pulse-monitor.example.workers.dev/ip-info?ip="+encodeURIComponent(ip);
+  const response=await worker.fetch(makeRequest(url),env);
+  assert.equal(response.status,400,ip);
+ }
+});
