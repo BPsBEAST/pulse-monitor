@@ -11,6 +11,8 @@ const makeRequest=(url=API,origin=ORIGIN)=>new Request(url,{headers:{"Origin":or
 async function withMock(response,run){
  const saved=globalThis.fetch;
  globalThis.fetch=async (url,options)=>{
+  if(String(url).startsWith("https://dns.google/resolve")||String(url).startsWith("https://cloudflare-dns.com/dns-query"))
+   assert.equal(options?.redirect,"manual","Cloudflare Workers do not support redirect: error for fetch");
   if(String(url).startsWith("https://cloudflare-dns.com/dns-query")){
    const type=new URL(url).searchParams.get("type");
    return new Response(JSON.stringify({Status:0,Answer:type==="A"?[{type:1,data:"93.184.215.14"}]:[{type:28,data:"2606:2800:220:1:248:1893:25c8:1946"}]}),{status:200});
