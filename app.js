@@ -1,10 +1,13 @@
 import {DEFAULT_API,EMPTY,normalizeUrl,registerMonitor,applyCheck,summary,hydrate} from "./pulse-core.mjs";
 import {initializeStorage,saveState} from "./pulse-storage.mjs";
+import {latencySvg,chartModel} from "./pulse-viz.mjs";
+import {diagnosticsHtml} from "./pulse-diagnostics.mjs";
 const $=id=>document.getElementById(id);
 const esc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const when=t=>Number.isFinite(t)?new Date(t).toLocaleString("pt-PT",{dateStyle:"short",timeStyle:"short"}):"Nunca";
 let state=EMPTY(),page="overview",editingId=null,queue=Promise.resolve(),timer=null,toastTimer=null;
 const inFlight=new Set();
+let graphPeriod=86400000,searchTerm="",diagnosing=false;
 let ready=false;
 // O campo técnico aceita apenas Workers. URLs comuns pertencem aos monitores.
 function isWorkerAddress(value){
@@ -59,7 +62,7 @@ function label(m){
 }
 function monitorHtml(m){
  const [cls,text]=label(m);
- return '<div class="monitor"><div class="monitor-main"><div class="site-avatar">◉</div><div class="site-details"><strong>'+esc(m.name||new URL(m.url).hostname)+'</strong><small>'+esc(m.url)+'</small><small>Última verificação: '+when(m.checkedAt)+'</small></div></div><div class="monitor-right"><span class="status '+cls+'">'+text+(m.status==="online"&&Number.isFinite(m.ms)?" · "+m.ms+" ms":"")+'</span><div class="monitor-actions"><button class="mini-btn" data-action="check" data-id="'+esc(m.id)+'" title="Verificar agora" '+(inFlight.has(m.id)?"disabled":"")+'>↻ Verificar</button> <button class="mini-btn" data-action="pause" data-id="'+esc(m.id)+'">'+(m.paused?"Retomar":"Pausar")+'</button> <button class="mini-btn" data-action="external" data-id="'+esc(m.id)+'">Diagnóstico externo ↗</button> <button class="mini-btn" data-action="edit" data-id="'+esc(m.id)+'">Editar</button> <button class="mini-btn danger" data-action="delete" data-id="'+esc(m.id)+'" aria-label="Eliminar website">×</button></div></div></div>';
+ return '<div class="monitor"><div class="monitor-main"><div class="site-avatar">◉</div><div class="site-details"><strong>'+esc(m.name||new URL(m.url).hostname)+'</strong><small>'+esc(m.url)+'</small><small>Última verificação: '+when(m.checkedAt)+'</small></div></div><div class="monitor-right"><span class="status '+cls+'">'+text+(m.status==="online"&&Number.isFinite(m.ms)?" · "+m.ms+" ms":"")+'</span><div class="monitor-actions"><button class="mini-btn" data-action="check" data-id="'+esc(m.id)+'" title="Verificar agora" '+(inFlight.has(m.id)?"disabled":"")+'>↻ Verificar</button> <button class="mini-btn" data-action="pause" data-id="'+esc(m.id)+'">'+(m.paused?"Retomar":"Pausar")+'</button> <button class="mini-btn diag-action" data-action="diagnose" data-id="'+esc(m.id)+'">⌘ Diagnóstico</button> <button class="mini-btn" data-action="external" data-id="'+esc(m.id)+'">Check-Host ↗</button> <button class="mini-btn" data-action="edit" data-id="'+esc(m.id)+'">Editar</button> <button class="mini-btn danger" data-action="delete" data-id="'+esc(m.id)+'" aria-label="Eliminar website">×</button></div></div></div>';
 }
 const empty=text=>'<div class="empty"><span class="empty-icon">◎</span>'+esc(text)+'</div>';
 const emptyMonitors=()=>'<div class="monitor-empty"><div class="empty-symbol">◉</div><h3>Ainda não tens websites</h3><p>Adiciona o teu primeiro website para começares a acompanhar a disponibilidade e a latência.</p><button type="button" class="subtle" data-action="add-empty">＋ Adicionar website</button></div>';
@@ -70,7 +73,19 @@ function render(){
  $("upStat").textContent=up;$("downStat").textContent=down;
  const latest=state.monitors.filter(m=>m.status==="online"&&Number.isFinite(m.ms)).map(m=>m.ms);
  $("latencyStat").textContent=latest.length?Math.round(latest.reduce((a,b)=>a+b,0)/latest.length)+" ms":"—";
- const monitors=state.monitors.map(monitorHtml).join("")||emptyMonitors();
+ $("heroChart").innerHTML=latencySvg(state.history,graphPeriod);
+ $("chartSampleCount").textContent=chartModel(state.history,graphPeriod).length+" medições de latência no período selecionado";
+ document.querySelectorAll(".chart-period").forEach(btn=>btn.classList.toggle("active",Number(btn.dataset.period)===graphPeriod));
+ const makeCard=m=>{
+  const records=state.history.filter(h=>h.id===m.id&&(h.status==="online"||h.status==="offline"));
+  const percent=records.length?(100*records.filter(x=>x.status==="online").length/records.length):null;
+  const cls=m.paused?"unknown":m.status==="online"?"up":m.status==="offline"?"down":"unknown";
+  const status=m.paused?"Pausado":m.status==="online"?"Online":m.status==="offline"?"Indisponível":m.checkedAt?"Inconclusivo":"Por verificar";
+  return '<button type="button" class="service-status-card panel" data-action="diagnose" data-id="'+esc(m.id)+'"><div class="service-top"><span class="service-name">'+esc(m.name||new URL(m.url).hostname)+'</span><span class="service-arrow">↗</span></div><span class="service-address">'+esc(new URL(m.url).hostname)+'</span><span class="service-status '+cls+'"><i class="status-led"></i>'+status+'</span><div class="service-track"><span style="width:'+(percent===null?0:percent.toFixed(1))+'%"></span></div><div class="service-foot"><span>'+(percent===null?"Sem medições":percent.toFixed(1)+"% das verificações")+'</span><span>'+(Number.isFinite(m.ms)?m.ms+" ms":"—")+'</span></div></button>';
+ };
+ $("serviceCards").innerHTML=state.monitors.length?state.monitors.slice(0,4).map(makeCard).join(""):'<div class="service-empty panel"><span class="empty-icon">◉</span><strong>Os teus serviços aparecem aqui</strong><p>Adiciona um website e acompanha o seu estado neste painel.</p></div>';
+ const filtered=state.monitors.filter(m=>!searchTerm||(m.name||"").toLowerCase().includes(searchTerm)||m.url.toLowerCase().includes(searchTerm));
+ const monitors=filtered.map(monitorHtml).join("")||(searchTerm?empty("Nenhum website corresponde à pesquisa.") : emptyMonitors());
  $("overviewMonitors").innerHTML=monitors;$("websitesMonitors").innerHTML=monitors;
  $("websitesCount").textContent=state.monitors.length+" guardados neste browser";
  const historyRow=h=>'<div class="entry"><div><b class="'+(h.status==="online"?"green":h.status==="offline"?"red":"muted")+'">'+esc(h.status==="online"?"● Online":h.status==="offline"?"● HTTP 5xx":"○ Indeterminado")+'</b> · '+esc(h.name||h.url)+(Number.isInteger(h.code)?" · HTTP "+h.code:"")+(Number.isFinite(h.ms)?" · "+h.ms+" ms":"")+'</div><time>'+when(h.at)+'</time></div>';
@@ -95,9 +110,9 @@ function render(){
  if($("intervalInput"))$("intervalInput").value=String(state.intervalMinutes);
 }
 function navigate(to){
- page=to;for(const id of ["overview","websites","history","incidents","notifications","settings"]){const el=$(id+"Page");if(el)el.classList.toggle("hidden",id!==to)}
+ page=to;for(const id of ["overview","websites","diagnostics","history","incidents","notifications","settings"]){const el=$(id+"Page");if(el)el.classList.toggle("hidden",id!==to)}
  document.querySelectorAll(".nav").forEach(b=>b.classList.toggle("active",b.dataset.page===to));
- const titles={overview:["Visão geral","Acompanha a disponibilidade e o tempo de resposta dos teus websites."],websites:["Websites","Websites guardados e verificações manuais."],history:["Histórico","Apenas medições realmente realizadas."],incidents:["Incidentes","Falhas confirmadas e recuperações."],notifications:["Notificações","Alertas enquanto estás a utilizar o PULSE."],settings:["Definições","Dados locais, cópias de segurança e intervalos."]};
+ const titles={overview:["Visão geral","Acompanha a disponibilidade e o tempo de resposta dos teus websites."],websites:["Websites","Websites guardados e verificações manuais."],diagnostics:["Diagnóstico","Consulta IPs públicos, DNS e disponibilidade HTTP."],history:["Histórico","Apenas medições realmente realizadas."],incidents:["Incidentes","Falhas confirmadas e recuperações."],notifications:["Notificações","Alertas enquanto estás a utilizar o PULSE."],settings:["Definições","Dados locais, cópias de segurança e intervalos."]};
  $("pageTitle").textContent=titles[to][0];$("pageDescription").textContent=titles[to][1];
  $("addTop").classList.remove("hidden");render();window.scrollTo({top:0,behavior:"smooth"});
 }
@@ -149,6 +164,8 @@ document.querySelectorAll(".nav").forEach(btn=>btn.addEventListener("click",()=>
 $("settingsBtn").onclick=()=>navigate("settings");
 $("addTop").onclick=()=>openDialog();$("closeDialog").onclick=()=>$("addDialog").close();
 $("addFromSettings").onclick=()=>openDialog();
+$("openHistory").onclick=()=>navigate("history");
+$("siteSearch").addEventListener("input",e=>{searchTerm=e.target.value.trim().toLowerCase();if(searchTerm&&page!=="websites")navigate("websites");else render()});
 $("addForm").addEventListener("submit",async event=>{
  event.preventDefault();
  if(!ready)return;
@@ -182,11 +199,39 @@ function wireQuickAdd(formId,inputId,errorId){
 }
 wireQuickAdd("dashboardAddForm","dashboardAddUrl","dashboardAddError");
 wireQuickAdd("quickAddForm","quickAddUrl","quickAddError");
+async function runDiagnostics(input){
+ if(diagnosing)return;
+ let url;
+ try{url=normalizeUrl(input)}catch(error){$("diagnosticError").textContent=error.message;return}
+ diagnosing=true;
+ $("diagnosticError").textContent="";
+ $("diagnosticResults").innerHTML='<div class="panel padded diagnostic-loading"><span class="loading-pulse">◉</span> A consultar DNS e resposta HTTP...</div>';
+ $("diagnoseBtn").disabled=true;
+ const controller=new AbortController();
+ const timeout=setTimeout(()=>controller.abort(),16000);
+ try{
+  const response=await fetch(state.api+"/diagnostics?url="+encodeURIComponent(url),{signal:controller.signal,headers:{Accept:"application/json"}});
+  if(!response.ok)throw Error(response.status===404?"O novo backend de diagnóstico ainda não foi publicado. Verifica o deployment da Cloudflare.":response.status===429?"Limite de verificações atingido. Experimenta novamente dentro de um minuto.":"Erro HTTP "+response.status+" na API de diagnóstico.");
+  const data=await response.json();
+  if(typeof data.hostname!=="string")throw Error(data.error||"A API não devolveu o relatório esperado.");
+  $("diagnosticResults").innerHTML=diagnosticsHtml(data);
+ }catch(error){
+  $("diagnosticError").textContent=error.name==="AbortError"?"O diagnóstico excedeu o tempo limite.":error.message;
+  $("diagnosticResults").innerHTML='<div class="panel padded"><p class="muted">Não existem resultados completos para mostrar.</p></div>';
+ }finally{clearTimeout(timeout);diagnosing=false;$("diagnoseBtn").disabled=false}
+}
+$("diagnosticForm").addEventListener("submit",event=>{
+ event.preventDefault();
+ void runDiagnostics($("diagnosticUrl").value.trim());
+});
 document.addEventListener("click",async e=>{
+ const periodBtn=e.target.closest("[data-period]");
+ if(periodBtn){graphPeriod=Number(periodBtn.dataset.period)||86400000;render();return}
  const btn=e.target.closest("[data-action]");if(!btn)return;
  if(btn.dataset.action==="add-empty"){openDialog();return}
  const m=state.monitors.find(x=>x.id===btn.dataset.id);if(!m)return;
  if(btn.dataset.action==="check")return void checkOne(m.id,{manual:true});
+ if(btn.dataset.action==="diagnose"){$("diagnosticUrl").value=m.url;navigate("diagnostics");return void runDiagnostics(m.url)}
  if(btn.dataset.action==="edit")return openDialog(m);
  if(btn.dataset.action==="delete")return void removeMonitor(m);
  if(btn.dataset.action==="external")return window.open("https://check-host.net/check-http?host="+encodeURIComponent(m.url),"_blank","noopener,noreferrer");
