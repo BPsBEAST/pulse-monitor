@@ -58,23 +58,6 @@ async function lookupDns(host,type){
  }
  throw Error("dns-unavailable");
 }
-async function debugDnsProviders(){
- const cases=[
-  ["google","https://dns.google/resolve?name=example.com&type=A","application/json"],
-  ["cloudflare","https://cloudflare-dns.com/dns-query?name=example.com&type=A","application/dns-json"]
- ];
- const out=[];
- for(const [provider,url,accept] of cases){
-  try{
-   const response=await fetch(url,{headers:{Accept:accept},redirect:"manual",signal:AbortSignal.timeout(3000)});
-   const body=await response.text();
-   let parsed={};try{parsed=JSON.parse(body)}catch{}
-   out.push({provider,httpStatus:response.status,dnsStatus:parsed.Status??null,answers:(parsed.Answer||[]).filter(x=>x.type===1||x.type===28).length,
-    bodyKind:response.headers.get("content-type")?.slice(0,60)||null});
-  }catch(e){out.push({provider,error:String(e).slice(0,140)})}
- }
- return out;
-}
 function checkDnsAddresses(records){
  const addresses=records.filter(x=>x&&[1,28].includes(x.type));
  if(!addresses.length||addresses.length>30)throw Error("dns-unavailable");
@@ -179,7 +162,6 @@ export default {
     if(request.method!=="GET")return json({error:"Method not allowed"},405,origin);
     const incoming=new URL(request.url);
     if(incoming.pathname==="/health")return json({service:"PULSE",version:"0.7",status:"ok"},200,origin);
-    if(incoming.pathname==="/dns-debug")return json({providers:await debugDnsProviders()},200,origin);
     if(!["/check","/diagnostics","/ip-info"].includes(incoming.pathname))return json({error:"Not found"},404,origin);
     if(!env.CHECK_LIMITER)return json({error:"Rate limiter not configured"},503,origin);
     const client=request.headers.get("CF-Connecting-IP")||"unknown";
