@@ -18,3 +18,20 @@ select:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid #b0f
 .latency-bar:hover{background:#d4ffc0;opacity:1}
 .latency-panel .small{margin:8px 0 0}
 @media(max-width:720px){.latency-bars{height:105px;gap:2px}}
+
+/* v0.3: make the monitor-entry workflow explicit and the backend settings advanced */
+.quick-add-panel{margin-bottom:18px;border-color:#39573e}
+.quick-add-panel h2{margin-bottom:7px}
+.quick-add-form{display:flex;gap:10px;align-items:stretch;margin-top:16px}
+.quick-add-form input{flex:1;min-width:0}
+.quick-add-form .primary{flex-shrink:0}
+.quick-add-panel .error{margin:9px 0 0;min-height:0}
+.settings-panel.add-hint{margin-bottom:18px;border-color:#426743;background:#14231d}
+.settings-panel.add-hint .primary{margin-top:9px}
+.advanced-settings{border:1px solid #2c394c;background:#0c1421;border-radius:10px;padding:14px 16px}
+.advanced-settings summary{cursor:pointer;font-size:13px;font-weight:750;color:#bbc8d8}
+.advanced-settings[open] summary{margin-bottom:12px}
+.advanced-settings .button-row{margin-top:13px}
+.advanced-settings code{color:#c1ecaa}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(max-width:720px){.quick-add-form{flex-direction:column}.quick-add-form .primary{width:100%}}
