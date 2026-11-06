@@ -1,66 +1,192 @@
-"use strict";
-const STORE="pulse:v2", $=id=>document.getElementById(id);
-const defaults={monitors:[],history:[],incidents:[],api:"https://pulse-monitor.brunofranciscospinto.workers.dev"};
-let state;
-try{const stored=JSON.parse(localStorage.getItem(STORE)||"{}");state={...defaults,...stored};if(!state.api)state.api=defaults.api;if(!Array.isArray(state.monitors)||!Array.isArray(state.history)||!Array.isArray(state.incidents))throw Error("invalid");}catch{state=structuredClone(defaults)}
-// Small preferences live in localStorage; historical checks live in IndexedDB.
-let historyDb=null;
-const persist=()=>{try{localStorage.setItem(STORE,JSON.stringify({...state,history:state.history.slice(0,100),incidents:state.incidents.slice(0,250)}))}catch{toast("Não foi possível guardar dados neste browser.")}};
-function dbTx(mode,fn){if(!historyDb)return;try{const tx=historyDb.transaction("checks",mode);fn(tx.objectStore("checks"));}catch(e){console.warn("PULSE history storage:",e)}}
-function saveCheckDb(h){dbTx("readwrite",store=>store.put({...h,key:h.key||crypto.randomUUID()}))}
-function deleteChecksDb(id){dbTx("readwrite",store=>{const request=store.getAll();request.onsuccess=()=>{for(const h of request.result)if(!id||h.id===id)store.delete(h.key)}})}
-function loadHistoryDb(){
- if(!("indexedDB" in window))return;
- const open=indexedDB.open("pulse-history",1);
- open.onupgradeneeded=()=>{const db=open.result;if(!db.objectStoreNames.contains("checks"))db.createObjectStore("checks",{keyPath:"key"})};
- open.onsuccess=()=>{historyDb=open.result;const tx=historyDb.transaction("checks","readonly"),query=tx.objectStore("checks").getAll();
- query.onsuccess=()=>{
-  const stored=query.result||[];
-  const seen=new Set(stored.map(h=>h.key));
-  for(const old of state.history){const entry={...old,key:old.key||crypto.randomUUID()};if(!seen.has(entry.key)){stored.push(entry);saveCheckDb(entry);seen.add(entry.key)}}
-  state.history=stored.sort((a,b)=>b.at-a.at).slice(0,5000);
-  persist();render();
- };
- };
- open.onerror=()=>console.warn("IndexedDB unavailable; using localStorage fallback");
+import {DEFAULT_API,EMPTY,normalizeUrl,registerMonitor,applyCheck,summary,hydrate} from "./pulse-core.mjs";
+import {initializeStorage,saveState} from "./pulse-storage.mjs";
+const $=id=>document.getElementById(id);
+const esc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const when=t=>Number.isFinite(t)?new Date(t).toLocaleString("pt-PT",{dateStyle:"short",timeStyle:"short"}):"Nunca";
+let state=EMPTY(),page="overview",editingId=null,queue=Promise.resolve(),timer=null,toastTimer=null;
+const inFlight=new Set();
+let ready=false;
+function toast(message){
+ const el=$("toast");el.textContent=message;el.classList.add("show");
+ clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove("show"),5200);
 }
-const safeUrl=input=>{const u=new URL(input);if(!["http:","https:"].includes(u.protocol)||u.username||u.password||u.port)throw Error("Usa um endereço HTTP(S), sem credenciais nem porta personalizada.");const h=u.hostname.toLowerCase();if(h==="localhost"||h.endsWith(".localhost")||h.endsWith(".local")||h.endsWith(".internal")||!h.includes(".")||/^\[.*\]$/.test(h)||/^[\d.]+$/.test(h))throw Error("Só são aceites nomes de domínio públicos.");u.hash="";return u.href};
-const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const date=ms=>new Date(ms).toLocaleString("pt-PT",{dateStyle:"short",timeStyle:"short"});
-let page="overview", toastTimer;
-function toast(msg){const el=$("toast");el.textContent=msg;el.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove("show"),4500)}
-const statusLabel=m=>m.checking?"◷ A verificar":m.status==="online"?"● Online":m.status==="offline"?"● Offline":"○ Desconhecido";
-function monitorHtml(m){let host="website";try{host=new URL(m.url).hostname}catch{}const cls=m.checking?"checking":m.status==="online"?"up":m.status==="offline"?"down":"unknown";return '<div class="monitor"><div class="monitor-main"><div class="site-avatar">◉</div><div class="site-details"><strong>'+esc(m.name||host)+'</strong><small>'+esc(m.url)+'</small></div></div><div class="monitor-right"><span class="status '+cls+'">'+statusLabel(m)+(m.status==="online"&&Number.isFinite(m.ms)?" · "+m.ms+" ms":"")+'</span><div class="monitor-actions"><button class="mini-btn" data-action="check" data-id="'+esc(m.id)+'" '+(m.checking?"disabled":"")+'>↻</button> <button class="mini-btn" data-action="external" data-id="'+esc(m.id)+'" title="Diagnóstico HTTP externo no Check-Host">Diagnóstico ↗</button> <button class="mini-btn" data-action="edit" data-id="'+esc(m.id)+'">Editar</button> <button class="mini-btn danger" data-action="delete" data-id="'+esc(m.id)+'">×</button></div></div></div>'}
-function empty(txt){return '<div class="empty"><span class="empty-icon">◎</span>'+esc(txt)+'</div>'}
-function render(){const up=state.monitors.filter(m=>m.status==="online").length,down=state.monitors.filter(m=>m.status==="offline").length;const ms=state.monitors.filter(m=>m.status==="online"&&Number.isFinite(m.ms)).map(m=>m.ms);$("totalStat").textContent=state.monitors.length;$("upStat").textContent=up;$("downStat").textContent=down;$("latencyStat").textContent=ms.length?Math.round(ms.reduce((a,b)=>a+b,0)/ms.length)+" ms":"—";const list=state.monitors.map(monitorHtml).join("")||empty("Ainda não adicionaste websites. Começa por adicionar o primeiro monitor.");$("overviewMonitors").innerHTML=list;$("websitesMonitors").innerHTML=list;$("websitesCount").textContent=state.monitors.length+" monitores";const historyHtml=state.history.map(h=>'<div class="entry"><div><b class="'+(h.status==="online"?"green":h.status==="offline"?"red":"muted")+'">'+esc(h.status==="online"?"● Online":h.status==="offline"?"● Offline":"○ Indeterminado")+'</b> · '+esc(h.name||h.url)+(h.code?" · HTTP "+Number(h.code):"")+(Number.isFinite(h.ms)?" · "+h.ms+" ms":"")+'</div><time>'+date(h.at)+'</time></div>').join("")||empty("Ainda não existem verificações registadas.");$("recentHistory").innerHTML=state.history.slice(0,5).map(h=>'<div class="entry"><div><b class="'+(h.status==="online"?"green":h.status==="offline"?"red":"muted")+'">'+esc(h.status)+"</b> · "+esc(h.name||h.url)+'</div><time>'+date(h.at)+'</time></div>').join("")||empty("Ainda sem atividade.");$("fullHistory").innerHTML=historyHtml;$("incidentList").innerHTML=state.incidents.map(i=>'<div class="entry"><div><b class="'+(i.end?"green":"red")+'">'+(i.end?"Recuperado":"Incidente ativo")+'</b> · '+esc(i.name||i.url)+'</div><time>'+date(i.start)+(i.end?" → "+date(i.end):"")+'</time></div>').join("")||empty("Nenhum incidente confirmado.");$("backendBanner").classList.toggle("hidden",!!state.api)}
-function navigate(to){page=to;for(const id of ["overview","websites","history","incidents","settings"])$(id+"Page").classList.toggle("hidden",id!==to);document.querySelectorAll(".nav").forEach(b=>b.classList.toggle("active",b.dataset.page===to));const labels={overview:["Dashboard","Uma visão clara do estado dos teus websites."],websites:["Websites","Adiciona e gere os teus monitores."],history:["Histórico","Resultados reais das verificações realizadas."],incidents:["Incidentes","Falhas confirmadas e recuperações."],settings:["Definições","Configuração e cópias de segurança."]};$("pageTitle").textContent=labels[to][0];$("pageDescription").textContent=labels[to][1];$("addTop").classList.toggle("hidden",to==="settings");if(to==="settings")$("apiInput").value=state.api;window.scrollTo({top:0,behavior:"smooth"})}
-let editingId=null;
-function openAdd(m){editingId=m?.id||null;$("monitorName").value=m?.name||"";$("monitorUrl").value=m?.url||"";$("formError").textContent="";$("addDialog").showModal();$("monitorUrl").focus()}
-function appendHistory(m,result){const entry={key:crypto.randomUUID(),id:m.id,url:m.url,name:m.name,status:result.status,code:result.code??null,ms:result.ms??null,at:Date.now()};state.history.unshift(entry);state.history=state.history.slice(0,5000);saveCheckDb(entry)}
-function updateIncident(m,next){
- // Require two matching consecutive observations before changing monitor state.
- if(next==="unknown"){m.pendingStatus=null;m.pendingCount=0;return}
- if(next===m.status){m.pendingStatus=null;m.pendingCount=0;return}
- const count=m.pendingStatus===next?(m.pendingCount||0)+1:1;
- m.pendingStatus=next;m.pendingCount=count;
- const needed=next==="offline"||m.status==="offline"?2:1;
- if(count<needed)return;
- const previous=m.status;
- m.status=next;m.pendingStatus=null;m.pendingCount=0;
- if(next==="offline")state.incidents.unshift({id:m.id,url:m.url,name:m.name,start:Date.now(),end:null});
- if(next==="online"&&previous==="offline"){
-  const incident=state.incidents.find(x=>x.id===m.id&&!x.end);if(incident)incident.end=Date.now()
+async function commit(mutator){
+ const work=async()=>{
+  const before=structuredClone(state);
+  try{const result=mutator(state);await saveState(state);render();return result}
+  catch(e){state=before;render();throw e}
+ };
+ const operation=queue.then(work,work);queue=operation.catch(()=>{});return operation;
+}
+function setStorageMessage(message,warning=false){
+ const el=$("storageNotice");
+ el.classList.remove("hidden");
+ el.innerHTML='<span class="banner-icon">'+(warning?"⚠":"ⓘ")+'</span><div><strong>'+esc(warning?"Atenção ao armazenamento":"Os teus websites ficam guardados neste browser")+'</strong><p>'+esc(message)+'</p></div>';
+}
+function label(m){
+ if(inFlight.has(m.id))return ["checking","◷ A verificar"];
+ if(m.paused)return ["unknown","Ⅱ Pausado"];
+ return m.status==="online"?["up","● Online"]:m.status==="offline"?["down","● Offline"]:["unknown","○ Desconhecido"];
+}
+function monitorHtml(m){
+ const [cls,text]=label(m);
+ return '<div class="monitor"><div class="monitor-main"><div class="site-avatar">◉</div><div class="site-details"><strong>'+esc(m.name||new URL(m.url).hostname)+'</strong><small>'+esc(m.url)+'</small><small>Última verificação: '+when(m.checkedAt)+'</small></div></div><div class="monitor-right"><span class="status '+cls+'">'+text+(m.status==="online"&&Number.isFinite(m.ms)?" · "+m.ms+" ms":"")+'</span><div class="monitor-actions"><button class="mini-btn" data-action="check" data-id="'+esc(m.id)+'" title="Verificar agora" '+(inFlight.has(m.id)?"disabled":"")+'>↻</button> <button class="mini-btn" data-action="pause" data-id="'+esc(m.id)+'">'+(m.paused?"Retomar":"Pausar")+'</button> <button class="mini-btn" data-action="external" data-id="'+esc(m.id)+'">Diagnóstico ↗</button> <button class="mini-btn" data-action="edit" data-id="'+esc(m.id)+'">Editar</button> <button class="mini-btn danger" data-action="delete" data-id="'+esc(m.id)+'" aria-label="Eliminar website">×</button></div></div></div>';
+}
+const empty=text=>'<div class="empty"><span class="empty-icon">◎</span>'+esc(text)+'</div>';
+function render(){
+ $("totalStat").textContent=state.monitors.length;
+ const up=state.monitors.filter(m=>!m.paused&&m.status==="online").length;
+ const down=state.monitors.filter(m=>!m.paused&&m.status==="offline").length;
+ $("upStat").textContent=up;$("downStat").textContent=down;
+ const latest=state.monitors.filter(m=>m.status==="online"&&Number.isFinite(m.ms)).map(m=>m.ms);
+ $("latencyStat").textContent=latest.length?Math.round(latest.reduce((a,b)=>a+b,0)/latest.length)+" ms":"—";
+ const monitors=state.monitors.map(monitorHtml).join("")||empty("Ainda não existem websites guardados. Adiciona o teu primeiro monitor.");
+ $("overviewMonitors").innerHTML=monitors;$("websitesMonitors").innerHTML=monitors;
+ $("websitesCount").textContent=state.monitors.length+" guardados neste browser";
+ const historyRow=h=>'<div class="entry"><div><b class="'+(h.status==="online"?"green":h.status==="offline"?"red":"muted")+'">'+esc(h.status==="online"?"● Online":h.status==="offline"?"● HTTP 5xx":"○ Indeterminado")+'</b> · '+esc(h.name||h.url)+(Number.isInteger(h.code)?" · HTTP "+h.code:"")+(Number.isFinite(h.ms)?" · "+h.ms+" ms":"")+'</div><time>'+when(h.at)+'</time></div>';
+ $("recentHistory").innerHTML=state.history.slice(0,5).map(historyRow).join("")||empty("Ainda não existem verificações.");
+ $("fullHistory").innerHTML=state.history.slice(0,500).map(historyRow).join("")||empty("Ainda não existem verificações.");
+ $("incidentList").innerHTML=state.incidents.map(i=>'<div class="entry"><div><b class="'+(i.end?"green":"red")+'">'+(i.end?"Recuperado":"Indisponível")+'</b> · '+esc(i.name||i.url)+'</div><time>'+when(i.start)+(i.end?" → "+when(i.end):"")+'</time></div>').join("")||empty("Sem incidentes confirmados.");
+ const cards=$("periodCards");
+ if(cards)cards.innerHTML=[["24 horas",86400000],["7 dias",7*86400000],["30 dias",30*86400000]].map(([name,period])=>{
+  const info=summary(state.history,period);return '<div class="period"><span>'+name+'</span><strong>'+(info.uptime===null?"—":info.uptime.toFixed(1)+"%")+'</strong><small>'+info.checks+' verificações · '+(info.avgMs===null?"sem latência":info.avgMs+" ms")+'</small></div>';
+ }).join("");
+ if($("notificationsList"))$("notificationsList").innerHTML=state.notifications.map(n=>'<div class="entry"><div>'+esc(n.message)+'</div><time>'+when(n.at)+'</time></div>').join("")||empty("Não existem notificações.");
+ $("backendBanner").classList.toggle("hidden",!!state.api);
+ if($("apiInput")&&page==="settings"&&document.activeElement!==$("apiInput"))$("apiInput").value=state.api;
+ if($("intervalInput"))$("intervalInput").value=String(state.intervalMinutes);
+}
+function navigate(to){
+ page=to;for(const id of ["overview","websites","history","incidents","notifications","settings"]){const el=$(id+"Page");if(el)el.classList.toggle("hidden",id!==to)}
+ document.querySelectorAll(".nav").forEach(b=>b.classList.toggle("active",b.dataset.page===to));
+ const titles={overview:["Dashboard","Uma visão clara do estado dos teus websites."],websites:["Websites","Websites guardados e verificações manuais."],history:["Histórico","Apenas medições realmente realizadas."],incidents:["Incidentes","Falhas confirmadas e recuperações."],notifications:["Notificações","Alertas enquanto estás a utilizar o PULSE."],settings:["Definições","Dados locais, cópias de segurança e intervalos."]};
+ $("pageTitle").textContent=titles[to][0];$("pageDescription").textContent=titles[to][1];
+ $("addTop").classList.toggle("hidden",to==="settings");render();window.scrollTo({top:0,behavior:"smooth"});
+}
+function openDialog(m=null){
+ editingId=m?.id||null;$("monitorName").value=m?.name||"";$("monitorUrl").value=m?.url||"";
+ $("formError").textContent="";$("addDialog").showModal();$("monitorUrl").focus();
+}
+function notify(item){
+ if(!item)return;toast(item.message);
+ if("Notification" in window&&Notification.permission==="granted"&&document.hidden){
+  try{new Notification("PULSE",{body:item.message,tag:item.id})}catch{}
  }
 }
-async function checkOne(id){const m=state.monitors.find(x=>x.id===id);if(!m||m.checking)return;if(!state.api){toast("Configura o Cloudflare Worker nas Definições para iniciar verificações reais.");return}m.checking=true;render();const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),11500);let result={status:"unknown",code:null,ms:null};try{const r=await fetch(state.api+"/check?url="+encodeURIComponent(m.url),{signal:controller.signal,headers:{Accept:"application/json"}});if(!r.ok)throw Error("Serviço de verificação indisponível (HTTP "+r.status+").");const body=await r.json();if(!["online","offline","unknown"].includes(body.status))throw Error("Resposta inválida do serviço.");result={status:body.status,code:body.code,ms:body.ms}}catch(e){toast("Não foi possível verificar "+(m.name||m.url)+": "+e.message)}finally{clearTimeout(timer);m.checking=false;const current=state.monitors.find(x=>x.id===id);if(current){updateIncident(current,result.status);current.ms=result.ms;current.checkedAt=Date.now();appendHistory(current,result);persist();render()}}}
-async function checkAll(){if(!state.api){toast("Configura primeiro o Worker nas Definições.");return}for(let start=0;start<state.monitors.length;start+=3){await Promise.all(state.monitors.slice(start,start+3).map(m=>checkOne(m.id)))}}
-document.querySelectorAll(".nav").forEach(b=>b.addEventListener("click",()=>navigate(b.dataset.page)));
-$("settingsBtn").onclick=()=>navigate("settings");$("addTop").onclick=()=>openAdd();$("closeDialog").onclick=()=>$("addDialog").close();
-$("addForm").onsubmit=e=>{e.preventDefault();try{const url=safeUrl($("monitorUrl").value.trim()),name=$("monitorName").value.trim();if(state.monitors.some(m=>m.url===url&&m.id!==editingId))throw Error("Este website já está na tua lista.");if(!editingId&&state.monitors.length>=20)throw Error("Limite de 20 monitores nesta versão.");if(editingId){const m=state.monitors.find(x=>x.id===editingId);if(m){if(m.url!==url){m.status="unknown";m.ms=null;m.checkedAt=null}m.url=url;m.name=name}}else state.monitors.unshift({id:crypto.randomUUID(),url,name,status:"unknown",ms:null,checkedAt:null});persist();render();$("addDialog").close();toast(editingId?"Website atualizado.":"Website adicionado.");if(!editingId&&state.api)checkOne(state.monitors[0].id)}catch(err){$("formError").textContent=err.message}};
-document.addEventListener("click",e=>{const b=e.target.closest("[data-action]");if(!b)return;const m=state.monitors.find(x=>x.id===b.dataset.id);if(!m)return;if(b.dataset.action==="check")checkOne(m.id);if(b.dataset.action==="external"){window.open("https://check-host.net/check-http?host="+encodeURIComponent(m.url),"_blank","noopener,noreferrer")}if(b.dataset.action==="edit")openAdd(m);if(b.dataset.action==="delete"&&confirm("Remover este website e o seu histórico?")){state.monitors=state.monitors.filter(x=>x.id!==m.id);state.history=state.history.filter(x=>x.id!==m.id);state.incidents=state.incidents.filter(x=>x.id!==m.id);deleteChecksDb(m.id);persist();render();toast("Monitor removido.")}});
-$("checkAll").onclick=checkAll;
-$("clearHistory").onclick=()=>{if(confirm("Limpar todo o histórico de verificações?")){state.history=[];deleteChecksDb(null);persist();render()}};
-$("saveApi").onclick=()=>{let value=$("apiInput").value.trim().replace(/\/+$/,"");if(value){try{const u=new URL(value);if(u.protocol!=="https:"||u.username||u.password||u.search||u.hash)throw Error();}catch{$("apiStatus").textContent="Introduz um URL HTTPS válido.";return}}state.api=value;persist();render();$("apiStatus").textContent=value?"Endereço guardado. Podes testar os monitores.":"Backend removido.";toast("Definições guardadas.")};
-$("exportBtn").onclick=()=>{const blob=new Blob([JSON.stringify({version:2,exportedAt:new Date().toISOString(),...state},null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="pulse-backup-"+new Date().toISOString().slice(0,10)+".json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
-$("importFile").onchange=async e=>{const file=e.target.files?.[0];if(!file)return;try{if(file.size>2e6)throw Error("Ficheiro demasiado grande.");const data=JSON.parse(await file.text());if(!Array.isArray(data.monitors)||!Array.isArray(data.history)||data.monitors.length>20||data.history.length>1000)throw Error("Formato de backup inválido.");const monitors=data.monitors.map(m=>({id:crypto.randomUUID(),url:safeUrl(m.url),name:String(m.name||"").slice(0,60),status:"unknown",ms:null,checkedAt:null}));state={monitors,history:[],incidents:[],api:state.api};deleteChecksDb(null);persist();render();toast("Websites importados. Os estados serão novamente verificados.")}catch(err){toast("Erro ao importar: "+err.message)}finally{e.target.value=""}};
-render();loadHistoryDb();setInterval(()=>{if(!document.hidden&&state.api&&state.monitors.length)checkAll()},300000);
+async function checkOne(id,{manual=false}={}){
+ const m=state.monitors.find(x=>x.id===id);if(!m||inFlight.has(id)||(!manual&&m.paused))return;
+ if(!state.api){toast("A API não está configurada. Abre Definições.");return}
+ inFlight.add(id);render();
+ const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),11500);
+ let result={status:"unknown",code:null,ms:null};
+ try{
+  const response=await fetch(state.api+"/check?url="+encodeURIComponent(m.url),{signal:controller.signal,headers:{Accept:"application/json"}});
+  if(!response.ok)throw Error("O serviço respondeu HTTP "+response.status);
+  const body=await response.json();
+  if(!["online","offline","unknown"].includes(body.status))throw Error("Resposta inválida da API");
+  result={status:body.status,code:body.code,ms:body.ms};
+ }catch(e){if(manual)toast("Não foi possível verificar: "+e.message)}
+ finally{
+  clearTimeout(timeout);inFlight.delete(id);
+  try{const note=await commit(s=>applyCheck(s,id,result));notify(note)}
+  catch(e){toast("Erro a guardar verificação: "+e.message)}
+  render();
+ }
+}
+async function checkAll(){
+ if(!state.api){toast("Configura a API nas Definições.");return}
+ const list=state.monitors.filter(m=>!m.paused);
+ for(let i=0;i<list.length;i+=3)await Promise.all(list.slice(i,i+3).map(m=>checkOne(m.id)));
+}
+async function removeMonitor(m){
+ if(!confirm("Eliminar "+(m.name||m.url)+" e todo o seu histórico neste browser?"))return;
+ try{await commit(s=>{s.monitors=s.monitors.filter(x=>x.id!==m.id);s.history=s.history.filter(x=>x.id!==m.id);s.incidents=s.incidents.filter(x=>x.id!==m.id)});toast("Website eliminado.")}
+ catch(e){toast("Não foi possível eliminar: "+e.message)}
+}
+function schedule(){
+ if(timer)clearInterval(timer);
+ timer=setInterval(()=>{if(!document.hidden&&ready)checkAll()},state.intervalMinutes*60000);
+}
+document.querySelectorAll(".nav").forEach(btn=>btn.addEventListener("click",()=>navigate(btn.dataset.page)));
+$("settingsBtn").onclick=()=>navigate("settings");
+$("addTop").onclick=()=>openDialog();$("closeDialog").onclick=()=>$("addDialog").close();
+$("addForm").addEventListener("submit",async event=>{
+ event.preventDefault();
+ if(!ready)return;
+ const submit=event.currentTarget.querySelector('[type="submit"]');
+ submit.disabled=true;
+ try{
+  const name=$("monitorName").value.trim(),url=$("monitorUrl").value.trim();
+  const previous=editingId;
+  const monitor=await commit(s=>registerMonitor(s,url,name,previous));
+  $("addDialog").close();navigate("websites");
+  toast("✓ Website "+(previous?"atualizado":"guardado")+" neste browser.");
+  if(!previous)void checkOne(monitor.id,{manual:true});
+ }catch(e){$("formError").textContent=e.message}
+ finally{submit.disabled=false}
+});
+document.addEventListener("click",async e=>{
+ const btn=e.target.closest("[data-action]");if(!btn)return;
+ const m=state.monitors.find(x=>x.id===btn.dataset.id);if(!m)return;
+ if(btn.dataset.action==="check")return void checkOne(m.id,{manual:true});
+ if(btn.dataset.action==="edit")return openDialog(m);
+ if(btn.dataset.action==="delete")return void removeMonitor(m);
+ if(btn.dataset.action==="external")return window.open("https://check-host.net/check-http?host="+encodeURIComponent(m.url),"_blank","noopener,noreferrer");
+ if(btn.dataset.action==="pause"){
+  try{await commit(s=>{const monitor=s.monitors.find(x=>x.id===m.id);monitor.paused=!monitor.paused});toast("Estado de monitorização atualizado.")}
+  catch(error){toast(error.message)}
+ }
+});
+$("checkAll").onclick=()=>void checkAll();
+$("clearHistory").onclick=async()=>{
+ if(!confirm("Eliminar todo o histórico de verificações?"))return;
+ try{await commit(s=>{s.history=[]});toast("Histórico eliminado.")}
+ catch(e){toast(e.message)}
+};
+if($("clearNotifications"))$("clearNotifications").onclick=async()=>{
+ try{await commit(s=>{s.notifications=[]});toast("Notificações eliminadas.")}catch(e){toast(e.message)}
+};
+$("saveApi").onclick=async()=>{
+ const value=$("apiInput").value.trim().replace(/\/+$/,"");
+ if(value){try{const u=new URL(value);if(u.protocol!=="https:"||u.username||u.password||u.search||u.hash)throw Error()}catch{$("apiStatus").textContent="Introduz um URL HTTPS válido.";return}}
+ try{await commit(s=>{s.api=value});$("apiStatus").textContent="Guardado.";toast("Endereço da API guardado.")}
+ catch(e){$("apiStatus").textContent=e.message}
+};
+if($("intervalInput"))$("intervalInput").onchange=async e=>{
+ const minutes=Number(e.target.value);
+ if(![1,5,10,15,30].includes(minutes))return;
+ try{await commit(s=>{s.intervalMinutes=minutes});schedule();toast("Intervalo alterado para "+minutes+" minutos.")}
+ catch(error){toast(error.message)}
+};
+$("exportBtn").onclick=()=>{
+ const backup=JSON.stringify({schema:"pulse-backup-v3",exportedAt:new Date().toISOString(),...state},null,2);
+ const blob=new Blob([backup],{type:"application/json"}),url=URL.createObjectURL(blob);
+ const a=document.createElement("a");a.href=url;a.download="pulse-backup-"+new Date().toISOString().slice(0,10)+".json";a.click();
+ setTimeout(()=>URL.revokeObjectURL(url),3000);
+};
+$("importFile").onchange=async e=>{
+ const file=e.target.files?.[0];if(!file)return;
+ try{
+  if(file.size>5e6)throw Error("O ficheiro é demasiado grande.");
+  const data=JSON.parse(await file.text());
+  if(!data||!Array.isArray(data.monitors)||data.monitors.length>20||!Array.isArray(data.history)||data.history.length>5000)throw Error("Backup inválido.");
+  if(!confirm("Substituir os websites atuais pelos existentes no backup?"))return;
+  const imported=hydrate({...data,api:state.api});
+  await commit(s=>{Object.assign(s,imported)});
+  toast("Backup importado com "+state.monitors.length+" websites.");navigate("websites");
+ }catch(error){toast("Erro na importação: "+error.message)}
+ finally{e.target.value=""}
+};
+if($("enableAlerts"))$("enableAlerts").onclick=async()=>{
+ if(!("Notification" in window)){toast("Este browser não suporta notificações.");return}
+ const permission=await Notification.requestPermission();
+ toast(permission==="granted"?"Notificações do browser ativadas.":"Notificações não autorizadas.");
+};
+(async()=>{
+ try{
+  const loaded=await initializeStorage();state=loaded.state;ready=true;
+  setStorageMessage("Os dados não são sincronizados entre dispositivos. Se estiveres em navegação anónima, podem desaparecer ao fechar todas as janelas. Exporta um backup nas Definições.",!loaded.hasPersistentStore);
+  if(!loaded.hasPersistentStore)toast("O browser pode estar a bloquear o armazenamento. Verifica as permissões.");
+  render();schedule();
+ }catch(e){ready=true;setStorageMessage("Não foi possível recuperar os dados guardados. Confirma as permissões de armazenamento do browser.",true);render()}
+})();
