@@ -142,3 +142,13 @@ test("public IP info works using Google DNS JSON provider",async()=>{
   assert.ok(calls.every(url=>url.startsWith("https://dns.google/resolve")));
  }finally{globalThis.fetch=saved}
 });
+
+test("HEAD 500 followed by GET 200 must not create a false outage",()=>withMock(async(_url,options)=>new Response(null,{status:options.method==="HEAD"?500:200}),async()=>{
+ const r=await worker.fetch(makeRequest(),env);
+ const result=await r.json();
+ assert.equal(result.code,200);assert.equal(result.status,"online");
+}));
+test("HEAD 500 followed by GET 500 still signals an outage",()=>withMock(async()=>new Response(null,{status:500}),async()=>{
+ const result=await(await worker.fetch(makeRequest(),env)).json();
+ assert.equal(result.code,500);assert.equal(result.status,"offline");
+}));
