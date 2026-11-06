@@ -1,0 +1,7 @@
+name = "pulse-monitor-check"
+main = "index.js"
+compatibility_date = "2026-11-01"
+workers_dev = true
+
+[vars]
+ALLOWED_ORIGIN = "https://bpsbeast.github.io"
