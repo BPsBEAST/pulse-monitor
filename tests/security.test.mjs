@@ -69,3 +69,14 @@ test("security endpoint rejects private addresses before probing",async()=>{
  const response=await worker.fetch(request("http://127.0.0.1/"),env);
  assert.equal(response.status,400);
 });
+
+test("security audit never retries a failing GET response",()=>withResponse(
+ ()=>new Response(null,{status:503,headers:{"content-type":"text/html"}}),async requests=>{
+  const response=await worker.fetch(request("https://example.com/"),env);
+  const report=await response.json();
+  assert.equal(response.status,200);
+  assert.equal(report.http.code,503);
+  assert.equal(report.score,null);
+  assert.deepEqual(report.checks,[]);
+  assert.deepEqual(requests,[{url:"https://example.com/",method:"GET",redirect:"manual"}]);
+}));
