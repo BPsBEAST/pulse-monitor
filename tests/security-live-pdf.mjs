@@ -1,0 +1,20 @@
+import assert from "node:assert/strict";
+import {mkdir,writeFile} from "node:fs/promises";
+import {securityPdfBytes} from "../pulse-security-pdf.mjs";
+
+const endpoint="https://pulse-monitor.brunofranciscospinto.workers.dev/security?url="+encodeURIComponent("https://example.com/");
+const response=await fetch(endpoint,{headers:{Origin:"https://bpsbeast.github.io",Accept:"application/json"},signal:AbortSignal.timeout(15000)});
+assert.equal(response.status,200,"The published security Worker must return HTTP 200");
+const data=await response.json();
+assert.equal(data.hostname,"example.com");
+assert.ok(Array.isArray(data.checks)&&data.checks.length>0,"Real security response must contain checks");
+assert.ok(Number.isFinite(Date.parse(data.checkedAt)));
+assert.ok(data.score===null||Number.isInteger(data.score));
+const pdf=securityPdfBytes(data);
+assert.ok(pdf.length>1000,"PDF should contain actual report content");
+assert.ok(Buffer.from(pdf.subarray(0,9)).toString("latin1").startsWith("%PDF-1.4"));
+assert.ok(Buffer.from(pdf.subarray(-40)).toString("latin1").includes("%%EOF"));
+const output="artifacts/security/pulse-security-example-com-live.pdf";
+await mkdir("artifacts/security",{recursive:true});
+await writeFile(output,pdf);
+console.log(JSON.stringify({output,bytes:pdf.length,pagesInPdf:(Buffer.from(pdf).toString("latin1").match(/\/Type \/Page\b/g)||[]).length,http:data.http?.code,score:data.score,checks:data.checks.length,checkedAt:data.checkedAt}));
