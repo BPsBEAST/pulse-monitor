@@ -325,7 +325,7 @@ dialog::backdrop{background:#040914c9}
 body{background:radial-gradient(ellipse 60% 55% at 71% -15%,rgba(48,78,139,.2),transparent 80%),#0a1020;color:#f2f5fc}
 .topbar{height:76px;min-height:76px;grid-template-columns:230px minmax(0,1fr) auto;background:#0f1528;border-bottom-color:#252c43;box-shadow:0 1px 0 rgba(255,255,255,.018)}
 .logo{font-size:28px;letter-spacing:-1.75px}
-.logo-mark{border-radius:11px;width:33px;height:33px;background:conic-gradient(from 210deg,#51c8d9,#3d96df,#a0f37e,#51c8d9);box-shadow:0 0 20px rgba(67,190,145,.17);color:#0a1524;margin-right:10px;font-size:24px}
+.logo-mark{width:auto;height:auto;border-radius:0;background:none;box-shadow:none;color:var(--lime);margin-right:9px;font-size:22px;line-height:1}
 .top-search{margin-left:12px;max-width:325px;border-radius:22px;background:#141c31;border-color:#2b3854;height:39px}
 .top-search:focus-within{border-color:#6da7b7;box-shadow:0 0 0 3px rgba(75,151,174,.12)}
 .top-right .tag{background:#193224;border-color:#2d4f3a}
