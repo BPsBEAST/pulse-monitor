@@ -234,7 +234,7 @@ export default {
       "Access-Control-Allow-Headers":"Content-Type","Vary":"Origin"}});
     if(request.method!=="GET")return json({error:"Method not allowed"},405,origin);
     const incoming=new URL(request.url);
-    if(incoming.pathname==="/health")return json({service:"PULSE",version:"0.7",status:"ok"},200,origin);
+    if(incoming.pathname==="/health")return json({service:"PULSE",version:"0.8",status:"ok"},200,origin);
     if(!["/check","/diagnostics","/ip-info","/security"].includes(incoming.pathname))return json({error:"Not found"},404,origin);
     if(!env.CHECK_LIMITER)return json({error:"Rate limiter not configured"},503,origin);
     const client=request.headers.get("CF-Connecting-IP")||"unknown";
@@ -253,7 +253,7 @@ export default {
     catch{return json({error:"Invalid public HTTP(S) URL"},400,origin)}
     let basic;
     try{basic=await dnsCheck(target.hostname)}
-    catch{return json({status:"unknown",code:null,ms:null,error:"DNS resolution failed or target rejected"},200,origin)}
+    catch{return incoming.pathname==="/security"?json({error:"O DNS não pôde ser validado ou o destino não é permitido para análise."},422,origin):json({status:"unknown",code:null,ms:null,error:"DNS resolution failed or target rejected"},200,origin)}
     if(incoming.pathname==="/check")return json(await probeHttp(target),200,origin);
     if(incoming.pathname==="/security")return json(securityReport(target,await probeHttp(target,true,true)),200,origin);
     const [records,http]=await Promise.all([dnsDetails(target.hostname,basic),probeHttp(target,true)]);
