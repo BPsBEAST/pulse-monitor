@@ -87,10 +87,12 @@ function render(){
   return '<button type="button" class="service-status-card panel" data-action="diagnose" data-id="'+esc(m.id)+'"><div class="service-top"><span class="service-name">'+esc(m.name||new URL(m.url).hostname)+'</span><span class="service-arrow">↗</span></div><span class="service-address">'+esc(new URL(m.url).hostname)+'</span><span class="service-status '+cls+'"><i class="status-led"></i>'+status+'</span><div class="service-track"><span style="width:'+(percent===null?0:percent.toFixed(1))+'%"></span></div><div class="service-foot"><span>'+(percent===null?"Sem medições":percent.toFixed(1)+"% das verificações")+'</span><span>'+(Number.isInteger(m.code)&&Number.isFinite(m.ms)?m.ms+" ms":"—")+'</span></div></button>';
  };
  const visibleServices=state.monitors.slice(0,4);
- const addSlot='<button type="button" class="service-placeholder" data-action="add-empty"><div class="service-top"><span class="service-name">Novo serviço</span><span class="service-arrow">＋</span></div><span class="service-address">Monitoriza outro website</span><span class="placeholder-plus">＋</span><div class="service-foot"><span>Adicionar monitor</span><span>↗</span></div></button>';
+ const newServiceSlot='<button type="button" class="service-placeholder" data-action="add-empty"><div class="service-top"><span class="service-name">Adicionar serviço</span><span class="service-arrow">↗</span></div><span class="service-address">Monitorizar outro website</span><span class="placeholder-plus">＋</span><div class="service-foot"><span>Novo monitor</span><span>+</span></div></button>';
+ const passiveSlot='<div class="service-placeholder service-ghost" aria-label="Espaço disponível para monitorização"><div class="service-top"><span class="service-name">Espaço disponível</span></div><span class="service-address">Adiciona serviços para preencheres o painel.</span><span class="placeholder-plus">◌</span><div class="service-foot"><span>Sem medições</span><span>—</span></div></div>';
+ const gaps=Math.max(0,4-visibleServices.length);
  $("serviceCards").innerHTML=visibleServices.length
-  ?visibleServices.map(makeCard).join("")+Array.from({length:Math.max(0,4-visibleServices.length)},()=>addSlot).join("")
-  :'<div class="service-empty panel"><span class="empty-icon">◉</span><strong>Os teus serviços vão aparecer aqui</strong><p>Começa por adicionar um website e o estado de cada serviço ficará visível.</p><button type="button" class="subtle" data-action="add-empty">＋ Adicionar website</button></div>';
+  ?visibleServices.map(makeCard).join("")+(gaps?newServiceSlot+passiveSlot.repeat(gaps-1):"")
+  :'<div class="service-empty panel"><span class="empty-icon">◉</span><strong>Os teus serviços vão aparecer aqui</strong><p>Adiciona o primeiro website para acompanhares verificações reais de disponibilidade.</p><button type="button" class="subtle" data-action="add-empty">＋ Adicionar website</button></div>';
  const filtered=state.monitors.filter(m=>!searchTerm||(m.name||"").toLowerCase().includes(searchTerm)||m.url.toLowerCase().includes(searchTerm));
  const monitors=filtered.map(monitorHtml).join("")||(searchTerm?empty("Nenhum website corresponde à pesquisa.") : emptyMonitors());
  $("overviewMonitors").innerHTML=monitors;$("websitesMonitors").innerHTML=monitors;
@@ -119,7 +121,7 @@ function render(){
 function navigate(to){
  page=to;for(const id of ["overview","websites","diagnostics","history","incidents","notifications","settings"]){const el=$(id+"Page");if(el)el.classList.toggle("hidden",id!==to)}
  document.querySelectorAll(".nav").forEach(b=>b.classList.toggle("active",b.dataset.page===to));
- const titles={overview:["Visão geral","Acompanha a disponibilidade e o tempo de resposta dos teus websites."],websites:["Websites","Websites guardados e verificações manuais."],diagnostics:["Diagnóstico","Consulta IPs públicos, DNS e disponibilidade HTTP."],history:["Histórico","Apenas medições realmente realizadas."],incidents:["Incidentes","Falhas confirmadas e recuperações."],notifications:["Notificações","Alertas enquanto estás a utilizar o PULSE."],settings:["Definições","Dados locais, cópias de segurança e intervalos."]};
+ const titles={overview:["Dashboard","Informação de infraestrutura, em tempo real quando disponível."],websites:["Websites","Websites guardados e verificações manuais."],diagnostics:["Diagnóstico","Consulta IPs públicos, DNS e disponibilidade HTTP."],history:["Histórico","Apenas medições realmente realizadas."],incidents:["Incidentes","Falhas confirmadas e recuperações."],notifications:["Notificações","Alertas enquanto estás a utilizar o PULSE."],settings:["Definições","Dados locais, cópias de segurança e intervalos."]};
  $("pageTitle").textContent=titles[to][0];$("pageDescription").textContent=titles[to][1];
  $("addTop").classList.remove("hidden");render();window.scrollTo({top:0,behavior:"smooth"});
 }
@@ -176,6 +178,7 @@ $("settingsBtn").onclick=()=>navigate("settings");
 $("addTop").onclick=()=>openDialog();$("closeDialog").onclick=()=>$("addDialog").close();
 $("addFromSettings").onclick=()=>openDialog();
 $("openHistory").onclick=()=>navigate("history");
+$("overviewAddWebsite").onclick=()=>openDialog();
 $("siteSearch").addEventListener("input",e=>{searchTerm=e.target.value.trim().toLowerCase();if(searchTerm&&page!=="websites")navigate("websites");else render()});
 $("addForm").addEventListener("submit",async event=>{
  event.preventDefault();
