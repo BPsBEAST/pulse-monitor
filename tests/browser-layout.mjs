@@ -44,6 +44,19 @@ try{
  assert.ok(services.x>chart.x+chart.width-5,"Desktop services should appear to the right of chart");
  assert.ok(Math.abs(chart.y-services.y)<20,"Desktop cards and chart should align at the top");
  assert.equal(await desktop.locator(".service-placeholder").count(),3,"Four balanced service slots expected");
+ assert.equal(await desktop.locator("#overviewPage .analytics-card").count(),3,"Expected three visually distinct analytics cards");
+ assert.equal(await desktop.locator(".sidebar .nav-icon").count(),7,"All sidebar items need consistent vector icons");
+ assert.equal(await desktop.locator(".operations-head").count(),1,"Operations header must be visible");
+ assert.equal(await desktop.locator(".overview-utility-grid").count(),1,"Compact utility section should be present");
+ const panelOrder=await desktop.evaluate(()=>{
+  const graph=document.querySelector(".dashboard-chart-card").getBoundingClientRect();
+  const bottom=document.querySelector(".dash-bottom-grid").getBoundingClientRect();
+  const add=document.querySelector(".start-panel").getBoundingClientRect();
+  return {graphBottom:graph.bottom,bottomTop:bottom.top,bottomBottom:bottom.bottom,addTop:add.top};
+ });
+ assert.ok(panelOrder.bottomTop>panelOrder.graphBottom-5,"Analytics cards must appear below the chart");
+ assert.ok(panelOrder.addTop>panelOrder.bottomBottom-5,"Add-site form must come below the analytical metrics");
+
  assert.equal(await desktop.locator(".hero-chart svg").count(),1,"Real measurement chart must be rendered");
  const layout=await desktop.evaluate(()=>({
   grid:getComputedStyle(document.querySelector(".overview-grid")).gridTemplateColumns,
@@ -53,7 +66,7 @@ try{
   width:innerWidth
  }));
  assert.ok(layout.grid.split(" ").length===2,"Expected a 2-column desktop grid");
- assert.ok(layout.stylesheet.includes("styles.css?v=8"),"Stylesheet must be cache-busted");
+ assert.ok(layout.stylesheet.includes("styles.css?v=9"),"Stylesheet must be cache-busted");
  assert.ok(layout.scrollWidth<=layout.width+2,"No horizontal scroll on desktop");
  await desktop.screenshot({path:"artifacts/browser/pulse-desktop-1440.png",fullPage:true});
  // Exercise the security UI and actual client-side PDF download without hitting public websites.
@@ -94,6 +107,9 @@ try{
  }));
  assert.ok(mobileLayout.scrollWidth<=mobileLayout.width+2,"No horizontal scroll on mobile");
  assert.ok(mobileLayout.chartWidth<=mobileLayout.width,"Chart must fit mobile viewport");
+ assert.equal(await mobile.locator("#overviewPage .analytics-card").count(),3,"All analytics cards must remain accessible on mobile");
+ assert.equal(await mobile.locator("#overviewPage .operations-head").count(),1);
+
  assert.ok(Math.abs(mobileLayout.sidebarBottom-844)<3,"Mobile navigation should be anchored at the bottom");
  await mobile.screenshot({path:"artifacts/browser/pulse-mobile-390.png",fullPage:true});
  await mobile.close();
