@@ -68,3 +68,30 @@ jobs:
             console.log("Security endpoint validated. HTTP:",d.http.code,
               "Checks:",d.checks.length,"Score:",d.score);
           ' "$report"
+
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Create security PDF using a real published Worker response
+        run: node tests/security-live-pdf.mjs
+      - name: Validate PDF structure and extracted content
+        run: |
+          python -m pip install --quiet pypdf
+          python - <<'PY'
+          from pypdf import PdfReader
+          file="artifacts/security/pulse-security-example-com-live.pdf"
+          reader=PdfReader(file,strict=True)
+          assert len(reader.pages)>=1
+          extracted="\n".join(page.extract_text() or "" for page in reader.pages)
+          assert "PULSE" in extracted and "example.com" in extracted
+          assert "VERIFICA" in extracted and "LIMITA" in extracted
+          print(f"Live report PDF: {len(reader.pages)} page(s), {len(extracted)} extracted characters")
+          PY
+      - name: Upload real PDF report from security smoke test
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pulse-live-security-pdf
+          path: artifacts/security/*.pdf
+          if-no-files-found: ignore
