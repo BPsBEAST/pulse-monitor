@@ -314,3 +314,189 @@ dialog::backdrop{background:#040914c9}
  .security-export{width:100%}
  .security-shield{display:none}
 }
+
+
+/* ===========================================================
+   PULSE 0.9  |  Observatory dashboard visual identity
+   New layout, not just re-colouring the original v0.8 view.
+   Scoped rules preserve the existing diagnostic and security UI.
+   =========================================================== */
+:root{--bg:#0a1020;--sidebar:#0c1223;--top:#0e1427;--panel:#171e33;--panel2:#1b243a;--line:#252f48;--text:#f2f5fc;--secondary:#97a7c1;--green:#88e682;--lime:#a9f577;--blue:#58a4ec;--radius:18px}
+body{background:radial-gradient(ellipse 60% 55% at 71% -15%,rgba(48,78,139,.2),transparent 80%),#0a1020;color:#f2f5fc}
+.topbar{height:76px;min-height:76px;grid-template-columns:230px minmax(0,1fr) auto;background:#0f1528;border-bottom-color:#252c43;box-shadow:0 1px 0 rgba(255,255,255,.018)}
+.logo{font-size:28px;letter-spacing:-1.75px}
+.logo-mark{border-radius:11px;width:33px;height:33px;background:conic-gradient(from 210deg,#51c8d9,#3d96df,#a0f37e,#51c8d9);box-shadow:0 0 20px rgba(67,190,145,.17);color:#0a1524;margin-right:10px;font-size:24px}
+.top-search{margin-left:12px;max-width:325px;border-radius:22px;background:#141c31;border-color:#2b3854;height:39px}
+.top-search:focus-within{border-color:#6da7b7;box-shadow:0 0 0 3px rgba(75,151,174,.12)}
+.top-right .tag{background:#193224;border-color:#2d4f3a}
+.sidebar{top:76px;height:calc(100dvh - 76px);width:230px;background:#0d1325;padding:30px 13px 20px;border-color:#222c45}
+.sidebar-caption{padding:0 17px 18px;color:#6f809e;font-size:10px}
+.sidebar nav{gap:7px}
+.sidebar .nav{font-size:13px;min-height:43px;border-radius:11px;padding:10px 13px;gap:13px;color:#98a8c1;font-weight:620;letter-spacing:.05px;transition:background .2s,color .2s}
+.sidebar .nav-icon{display:block;width:18px;height:18px;flex:none;stroke:currentColor}
+.sidebar .nav span{margin-left:0}
+.sidebar .nav.active{color:#aff39c;background:linear-gradient(90deg,rgba(109,184,117,.18),rgba(66,123,98,.11));border-color:rgba(110,180,127,.15);box-shadow:inset 3px 0 0 #83dd87}
+.sidebar .nav:hover{background:#19243b}
+.sidebar-footer{border-top:1px solid #263047;margin-top:auto;padding:16px 12px;font-size:11px}
+.content{max-width:1660px;padding:30px clamp(22px,2.35vw,42px) 80px}
+.page-head{margin-bottom:22px}
+.page-head h1{font-size:30px;font-weight:790;letter-spacing:-1.1px}
+.page-head .eyebrow{font-size:9px;letter-spacing:2.15px;color:#79cfa3}
+.page-head .muted{font-size:12px}
+.page-head .primary{height:44px;border-radius:11px;padding:0 20px;background:#a0ec88;min-width:0}
+.panel{background:#171e33;border:1px solid #283149;border-radius:16px;box-shadow:0 10px 40px rgba(2,7,19,.12)}
+#overviewPage .operations-head{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:0 0 21px}
+#overviewPage .pulse-live{display:inline-flex;align-items:center;gap:10px;color:#94e39b;font-size:9px;font-weight:850;letter-spacing:2.05px}
+#overviewPage .live-ring{position:relative;display:inline-block;width:8px;height:8px;border-radius:50%;background:#8af08a;box-shadow:0 0 0 5px rgba(119,235,138,.09),0 0 16px rgba(119,235,138,.4)}
+#overviewPage .operations-head h2{font-size:25px;margin:9px 0 5px;letter-spacing:-.8px;font-weight:770}
+#overviewPage .operations-head h2 span{color:#82d48e}
+#overviewPage .operations-headline>p{font-size:12px;color:#8f9fba;margin:0}
+#overviewPage .operations-refresh{display:inline-flex;align-items:center;gap:8px;background:#202a42;border:1px solid #35445f;border-radius:11px;color:#c2d2e8;min-height:39px}
+#overviewPage .operations-refresh svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#overviewPage .overview-grid{display:grid;grid-template-columns:minmax(0,1.68fr) minmax(360px,1fr);gap:16px;align-items:stretch;margin-bottom:17px}
+#overviewPage .dashboard-chart-card{background:linear-gradient(160deg,#19243a 0%,#141c31 72%);border:1px solid #2b3551;min-height:393px;padding:25px 25px 16px;box-shadow:inset 0 1px 0 rgba(255,255,255,.022)}
+#overviewPage .dash-chart-head{display:flex;align-items:flex-start;justify-content:space-between;gap:15px}
+#overviewPage .dash-chart-head .eyebrow{color:#74aabd;font-size:9px;letter-spacing:1.7px;margin-bottom:10px}
+#overviewPage .dash-chart-head h2{font-size:23px;margin:0 0 8px;letter-spacing:-.65px}
+#overviewPage .dash-chart-head .muted{font-size:11px}
+#overviewPage .chart-live-indicator{display:inline-flex;align-items:center;gap:7px;font-size:9px;font-weight:800;white-space:nowrap;letter-spacing:1.15px;color:#a0d7a6;padding:7px 11px;border-radius:25px;background:#20362f;border:1px solid #305547}
+#overviewPage .chart-live-indicator>span{width:6px;height:6px;background:#9af18b;border-radius:50%}
+#overviewPage .chart-tools{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:16px 0 7px}
+#overviewPage .chart-legend{display:flex;align-items:center;gap:18px;color:#9facc4;font-size:11px;white-space:normal}
+#overviewPage .chart-period-controls{display:flex;gap:4px;margin:0;background:#101a2e;border:1px solid #29354e;border-radius:10px;padding:4px}
+#overviewPage .chart-period{padding:6px 10px;font-size:10px;border-radius:7px;color:#8393ac}
+#overviewPage .chart-period.active{background:#28443c;border-color:transparent;color:#abf39c}
+#overviewPage .hero-chart{min-height:222px;max-height:260px;background:radial-gradient(ellipse at 52% 70%,rgba(52,106,91,.07),transparent 70%);margin:0 -3px}
+#overviewPage .hero-chart:before{opacity:.53;inset:16px 12px 29px 22px}
+#overviewPage .graph-empty{background:linear-gradient(135deg,rgba(55,82,113,.13),rgba(21,39,55,.04));border:1px dashed #35435f;border-radius:13px;max-width:350px;min-height:134px;margin:auto;padding:17px}
+#overviewPage .graph-empty-icon{font-size:28px;color:#81c7a0}
+#overviewPage .graph-empty strong{font-size:13px}
+#overviewPage .graph-empty p{font-size:11px}
+#overviewPage .chart-foot{border-color:#2b354e;margin-top:auto;padding-top:13px;font-size:10px}
+#overviewPage .chart-footer-note{color:#577d9a;font-size:9px;letter-spacing:1.2px;font-weight:750}
+#overviewPage .pulse-wave-mini{font-size:18px;color:#72d899}
+#overviewPage .dash-service-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:13px;min-height:393px}
+#overviewPage .service-status-card,#overviewPage .service-placeholder{min-height:0;border-radius:16px;padding:19px 17px 15px;position:relative;overflow:hidden}
+#overviewPage .service-status-card{background:linear-gradient(145deg,#1e2741,#192039);border-color:#2d3853;box-shadow:inset 0 1px 0 rgba(255,255,255,.018)}
+#overviewPage .service-status-card:after{content:"";pointer-events:none;position:absolute;width:135px;height:135px;right:-80px;top:-70px;background:radial-gradient(circle,rgba(76,150,111,.13),transparent 70%)}
+#overviewPage .service-top{position:relative;z-index:1}
+#overviewPage .service-name{font-size:12px;font-weight:760;letter-spacing:-.1px}
+#overviewPage .service-arrow{color:#97a9c4}
+#overviewPage .service-address{font-size:10px;color:#8395b0;margin-top:7px}
+#overviewPage .service-status{font-size:19px;letter-spacing:-.55px;margin:11px 0 13px;gap:10px}
+#overviewPage .status-led{width:16px;height:16px;box-shadow:0 0 0 5px rgba(255,255,255,.05)}
+#overviewPage .service-status.up .status-led{box-shadow:0 0 0 5px rgba(136,231,122,.12),0 0 16px rgba(131,226,110,.27)}
+#overviewPage .service-track{height:7px;background:#343e58}
+#overviewPage .service-foot{font-size:10px;margin-top:11px;color:#899bb7}
+#overviewPage .service-placeholder{background:linear-gradient(145deg,#171e32,#151d30);border:1px dashed #34415e;color:#8b9cb8;justify-content:center;gap:7px}
+#overviewPage .service-placeholder .service-name{font-size:11px;color:#a6b6d1}
+#overviewPage .service-placeholder .service-address{margin:0}
+#overviewPage .service-placeholder .placeholder-plus{margin-top:2px;width:34px;height:34px;border-radius:11px;background:#243b35;border:1px solid #375a4a;color:#a5ed95}
+#overviewPage .service-placeholder.service-ghost{opacity:.58;cursor:default;border-style:solid}
+#overviewPage .service-placeholder.service-ghost .placeholder-plus{background:#242f43;color:#698eaa;border-color:#2f3e55;font-size:16px}
+#overviewPage .service-placeholder.service-ghost:hover{transform:none}
+#overviewPage .service-empty{background:linear-gradient(150deg,#1b2540,#141c30)}
+#overviewPage .dash-bottom-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:17px}
+#overviewPage .analytics-card{background:linear-gradient(150deg,#1a2339,#171e32);min-height:255px;padding:21px 22px}
+#overviewPage .analytics-card .eyebrow{font-size:9px;letter-spacing:1.5px;color:#80aabc}
+#overviewPage .analytics-card h2{font-size:18px;letter-spacing:-.4px}
+#overviewPage .analytics-card .muted{font-size:11px}
+#overviewPage .analytics-card .section-header{align-items:flex-start;margin-bottom:15px}
+#overviewPage .card-corner-icon{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:#253148;border:1px solid #34435b;color:#8bc3cd;font-size:17px}
+#overviewPage .analytics-card .periods{display:flex;flex-direction:column;gap:9px}
+#overviewPage .analytics-card .period{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1px 8px;align-items:center;background:#212d46;padding:11px 13px;border:1px solid #34415c;border-radius:11px}
+#overviewPage .analytics-card .period span{font-size:11px;color:#a6b5ce}
+#overviewPage .analytics-card .period strong{font-size:18px;color:#a1ed8e;margin:0;letter-spacing:-.5px}
+#overviewPage .analytics-card .period small{font-size:10px;color:#758da9}
+#overviewPage .analytics-card .latency-bars{height:132px;margin:9px 0 11px;gap:5px;border-bottom:1px solid #33435d}
+#overviewPage .analytics-card .latency-bar{background:linear-gradient(180deg,#89ed9c 0%,#56b7ca 55%,#376595 100%);border-radius:4px 4px 0 0;min-width:3px}
+#overviewPage .analytics-summary .dashboard-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:0}
+#overviewPage .analytics-summary .stat{min-height:75px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:10px 12px;background:#222c45;border-radius:11px;border:1px solid #35405b}
+#overviewPage .analytics-summary .stat span{font-size:10px;color:#a2b3c9}
+#overviewPage .analytics-summary .stat strong{margin:3px 0;font-size:24px;letter-spacing:-.7px;white-space:nowrap}
+#overviewPage .analytics-summary .stat small{font-size:9px;color:#7387a4}
+#overviewPage .overview-utility-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:16px;margin-bottom:23px}
+#overviewPage .start-panel{margin:0;padding:20px 22px;border-color:#314d51;background:linear-gradient(128deg,#19323a,#17253b 70%,#18243d)}
+#overviewPage .start-panel h2{font-size:18px}
+#overviewPage .start-panel .eyebrow{color:#98d99c}
+#overviewPage .start-panel .start-signal{background:#254538;border:1px solid #3d6850}
+#overviewPage .quick-add-form{margin-top:16px;gap:9px}
+#overviewPage .quick-add-form input{min-height:44px;border-color:#35536a;background:#101c30}
+#overviewPage .quick-add-form button{font-size:11px;border-radius:9px}
+#overviewPage .storage-hint{font-size:9px}
+#overviewPage .activity-panel{min-height:195px;background:linear-gradient(150deg,#192237,#161e31)}
+#overviewPage .activity-panel .eyebrow{color:#86afcb}
+#overviewPage .activity-panel h2{font-size:18px}
+#overviewPage .activity-panel .entry{font-size:11px;padding:9px 0}
+#overviewPage .activity-panel .section-header{margin-bottom:7px}
+#overviewPage .activity-panel .subtle{background:#26364b;border-color:#37455f}
+#overviewPage .monitors-title{margin-top:27px}
+#overviewPage .monitors-title .eyebrow{font-size:9px;color:#80a8be;margin-bottom:6px}
+#overviewPage .monitors-title h2{font-size:20px}
+#overviewPage .monitors-overview-panel{background:#151e33}
+#overviewPage .monitors-overview-panel .monitor{border-color:#2b3650}
+.monitor-error{display:block;color:#f1b8a5;font-size:10px}
+@media(max-width:1280px){
+ .topbar{grid-template-columns:205px minmax(0,1fr) auto}
+ .sidebar{width:205px}
+ #overviewPage .overview-grid{grid-template-columns:minmax(0,1.4fr) minmax(335px,1fr)}
+ #overviewPage .dashboard-chart-card{padding:20px}
+ #overviewPage .dash-service-grid{gap:10px}
+ #overviewPage .service-status-card,#overviewPage .service-placeholder{padding:15px}
+ #overviewPage .dash-bottom-grid{gap:12px}
+ #overviewPage .analytics-card{padding:18px}
+}
+@media(max-width:1050px){
+ .topbar{grid-template-columns:180px minmax(0,1fr) auto}
+ .sidebar{width:180px}
+ #overviewPage .overview-grid{grid-template-columns:1fr}
+ #overviewPage .dashboard-chart-card{min-height:347px}
+ #overviewPage .dash-service-grid{min-height:170px;grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:1fr}
+ #overviewPage .dash-bottom-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #overviewPage .dash-bottom-grid .analytics-summary{grid-column:1/-1;min-height:230px}
+ #overviewPage .analytics-summary .dashboard-stats{grid-template-columns:repeat(4,minmax(0,1fr))}
+ #overviewPage .overview-utility-grid{grid-template-columns:1fr}
+}
+@media(max-width:740px){
+ #overviewPage .dash-service-grid{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(145px,1fr))}
+ #overviewPage .operations-head h2{font-size:21px}
+ #overviewPage .dash-bottom-grid{grid-template-columns:1fr}
+ #overviewPage .dash-bottom-grid .analytics-summary{grid-column:auto}
+ #overviewPage .analytics-summary .dashboard-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:650px){
+ .topbar{height:65px;min-height:65px;grid-template-columns:auto minmax(0,1fr) auto;padding:0 12px}
+ .sidebar{top:auto;width:100%;height:70px;bottom:0}
+ .sidebar nav{gap:1px}
+ .sidebar .nav{flex:1;min-width:43px;min-height:55px;flex-direction:column;justify-content:center;gap:4px;padding:5px 1px;border-radius:8px;font-size:10px}
+ .sidebar .nav-icon{width:19px;height:19px}
+ .sidebar .nav span{font-size:8px;letter-spacing:-.35px}
+ .content{padding:20px 14px 34px}
+ .page-head{margin-bottom:18px}
+ .page-head h1{font-size:25px}
+ #overviewPage .operations-head{align-items:flex-start;gap:10px;padding-bottom:18px}
+ #overviewPage .operations-head h2{font-size:19px;line-height:1.3}
+ #overviewPage .operations-head h2 span{display:block}
+ #overviewPage .operations-headline>p{font-size:11px}
+ #overviewPage .operations-refresh{font-size:10px;padding:9px;min-height:36px;white-space:nowrap}
+ #overviewPage .operations-refresh svg{width:14px;height:14px}
+ #overviewPage .dashboard-chart-card{min-height:306px;padding:17px 15px}
+ #overviewPage .dash-chart-head h2{font-size:20px}
+ #overviewPage .chart-tools{align-items:flex-start;flex-direction:column;gap:10px}
+ #overviewPage .hero-chart{min-height:160px}
+ #overviewPage .dash-service-grid{min-height:314px;gap:9px}
+ #overviewPage .service-status-card,#overviewPage .service-placeholder{padding:13px}
+ #overviewPage .service-status{font-size:15px;margin:8px 0}
+ #overviewPage .service-name{font-size:11px}
+ #overviewPage .analytics-card{min-height:215px;padding:18px}
+ #overviewPage .analytics-card .latency-bars{height:95px}
+ #overviewPage .start-panel{padding:18px}
+ #overviewPage .quick-add-form{flex-direction:column}
+ #overviewPage .quick-add-form button{width:100%}
+}
+@media(max-width:380px){
+ #overviewPage .operations-refresh{font-size:0}
+ #overviewPage .operations-refresh svg{width:18px;height:18px}
+ #overviewPage .chart-live-indicator{display:none}
+ #overviewPage .service-status{font-size:13px}
+}
