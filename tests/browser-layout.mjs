@@ -53,7 +53,7 @@ try{
   width:innerWidth
  }));
  assert.ok(layout.grid.split(" ").length===2,"Expected a 2-column desktop grid");
- assert.ok(layout.stylesheet.includes("styles.css?v=7"),"Stylesheet must be cache-busted");
+ assert.ok(layout.stylesheet.includes("styles.css?v=8"),"Stylesheet must be cache-busted");
  assert.ok(layout.scrollWidth<=layout.width+2,"No horizontal scroll on desktop");
  await desktop.screenshot({path:"artifacts/browser/pulse-desktop-1440.png",fullPage:true});
  await desktop.close();
