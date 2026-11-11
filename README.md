@@ -4,7 +4,26 @@ Free website monitoring without user accounts. Static GitHub Pages frontend + Cl
 
 **Frontend:** https://bpsbeast.github.io/pulse-monitor/  
 **Worker:** https://pulse-monitor.brunofranciscospinto.workers.dev  
-**Release:** v0.5 MVP
+**Release:** v0.8 source (deploy do Worker necessário para o diagnóstico de segurança)
+
+
+## Segurança HTTP (v0.8)
+
+Dentro de **Diagnóstico**, a área **Segurança HTTP** permite analisar a configuração de um website público. Cada website guardado também apresenta um atalho **Segurança** para preencher e executar a análise. A funcionalidade reutiliza o mesmo frontend GitHub Pages, o Cloudflare Worker já existente e o mesmo limite de pedidos.
+
+- GET /security?url=https://exemplo.pt realiza **uma única consulta GET** ao destino, depois de validar o DNS e sem seguir redirecionamentos. Não faz fuzzing, scans de portas, brute force, exploração de falhas nem análise de recursos internos.
+- As **7 verificações** são HTTPS (25 pontos), HSTS (20), CSP (20), proteção contra clickjacking (10), X-Content-Type-Options (10), Referrer-Policy (10) e Permissions-Policy (5). O painel mostra evidência observada, estado e recomendação.
+- O resultado é **indicativo**; a nota é calculada apenas sobre critérios avaliáveis e apresenta a cobertura. Se não houver resposta 2xx ou cobertura suficiente, não atribui pontuação. Redirecionamentos não são seguidos.
+- **Descarregar PDF** gera localmente um PDF de várias páginas com avaliação, recomendações, data e limitações, sem serviço externo nem biblioteca paga. Os valores recebidos do site são escapados na interface.
+- O Worker pode confirmar que uma ligação HTTPS teve sucesso, **mas não disponibiliza validade/emissor/cadeia/versionamento do certificado TLS**. Não existem alegações de validação detalhada de certificados, testes de vulnerabilidades, dependências/CVEs, cookies ou segurança de páginas autenticadas. Para analisar dependências é necessário um ficheiro de dependências ou um SBOM fornecido pelo proprietário.
+- A análise é pontual e apenas a pedido do utilizador, sem alterações ao monitor periódico, histórico ou armazenamento dos websites.
+
+### Deploy desta funcionalidade
+
+1. O GitHub Pages publica automaticamente a interface após merge em main.
+2. Publica manualmente a versão atualizada de worker/index.js com o Cloudflare Wrangler usando worker/wrangler.toml (npx wrangler deploy a partir da pasta worker). A publicação na Cloudflare não é feita automaticamente pelo workflow de Pages.
+3. Se o Worker ainda for antigo, o PULSE mostra uma mensagem explícita em vez de inventar uma pontuação. Confirma o endpoint /health com versão 0.8.
+4. Executa node --test tests/*.test.mjs e usa os testes Playwright do workflow .github/workflows/tests.yml. O projeto mantém os limites do plano gratuito sujeitos aos termos do fornecedor.
 
 ## Adicionar um website (importante)
 

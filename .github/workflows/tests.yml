@@ -21,6 +21,8 @@ jobs:
           node --check pulse-core.mjs
           node --check pulse-storage.mjs
           node --check worker/index.js
+          node --check pulse-security.mjs
+          node --check pulse-security-pdf.mjs
       - name: Run Worker API unit tests
         run: node --test tests/*.test.mjs
 

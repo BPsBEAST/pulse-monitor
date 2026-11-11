@@ -120,7 +120,7 @@ test("health endpoint identifies the deployed version",async()=>{
  const r=await worker.fetch(makeRequest("https://pulse-monitor.example.workers.dev/health"),env);
  assert.equal(r.status,200);
  const data=await r.json();
- assert.equal(data.service,"PULSE");assert.equal(data.version,"0.7");
+ assert.equal(data.service,"PULSE");assert.equal(data.version,"0.8");
 });
 test("public IP info works using Google DNS JSON provider",async()=>{
  const saved=globalThis.fetch;

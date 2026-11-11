@@ -4,12 +4,12 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#090e17"><meta name="description" content="PULSE — monitorização gratuita de websites e APIs, sem contas.">
 <title>PULSE — Website Monitoring</title>
-<link rel="stylesheet" href="./styles.css?v=7">
+<link rel="stylesheet" href="./styles.css?v=8">
 </head>
 <body>
 <header class="topbar"><a class="logo" href="./" aria-label="PULSE, página inicial"><span class="logo-mark">◉</span> pulse<span class="dot">.</span></a><div class="top-search"><span aria-hidden="true">⌕</span><input id="siteSearch" type="search" placeholder="Pesquisar websites..." aria-label="Pesquisar websites monitorizados"></div><div class="top-right"><span class="tag">● FREE · NO ACCOUNT</span><button id="settingsBtn" class="icon-button" aria-label="Definições">⚙</button></div></header>
 <div class="shell">
-<aside class="sidebar"><div class="sidebar-caption">MENU</div><nav aria-label="Navegação principal"><button class="nav active" data-page="overview">▦ <span>Visão geral</span></button><button class="nav" data-page="websites">◉ <span>Websites</span></button><button class="nav" data-page="diagnostics">⌘ <span>Diagnóstico</span></button><button class="nav" data-page="history">◷ <span>Histórico</span></button><button class="nav" data-page="incidents">⚑ <span>Incidentes</span></button><button class="nav" data-page="notifications">♧ <span>Notificações</span></button><button class="nav" data-page="settings">⚙ <span>Definições</span></button></nav><div class="sidebar-footer">PULSE v0.6<br><span>Os dados ficam neste browser</span></div></aside>
+<aside class="sidebar"><div class="sidebar-caption">MENU</div><nav aria-label="Navegação principal"><button class="nav active" data-page="overview">▦ <span>Visão geral</span></button><button class="nav" data-page="websites">◉ <span>Websites</span></button><button class="nav" data-page="diagnostics">⌘ <span>Diagnóstico</span></button><button class="nav" data-page="history">◷ <span>Histórico</span></button><button class="nav" data-page="incidents">⚑ <span>Incidentes</span></button><button class="nav" data-page="notifications">♧ <span>Notificações</span></button><button class="nav" data-page="settings">⚙ <span>Definições</span></button></nav><div class="sidebar-footer">PULSE v0.8<br><span>Os dados ficam neste browser</span></div></aside>
 <main class="content">
 <div class="page-head"><div><p class="eyebrow">MONITORING OVERVIEW</p><h1 id="pageTitle">Visão geral</h1><p id="pageDescription" class="muted">Todos os teus serviços e métricas num único lugar.</p></div><button id="addTop" class="primary">＋ Novo website</button></div>
 <div class="banner hidden" id="storageNotice"></div>
@@ -50,6 +50,12 @@
  <form id="diagnosticForm" class="quick-add-form"><label class="sr-only" for="diagnosticUrl">URL de um website público</label><input id="diagnosticUrl" type="url" placeholder="https://exemplo.pt" required aria-label="URL do website para diagnóstico"><button class="primary" id="diagnoseBtn" type="submit">Executar diagnóstico</button></form><p id="diagnosticError" class="error" role="alert"></p>
  </div>
  <div id="diagnosticResults" aria-live="polite" class="diagnostic-results"><div class="empty diagnostic-empty"><span class="empty-icon">⌁</span>Introduz um endereço público acima para consultar o DNS e a resposta HTTP.</div></div>
+ <div class="panel padded security-workspace" id="securityWorkspace">
+  <div class="section-header"><div><p class="eyebrow">SECURITY CHECK</p><h2>Segurança HTTP</h2><p class="muted small">Análise passiva de headers, HTTPS e políticas de proteção. A pontuação é indicativa e só utiliza resultados realmente observados.</p></div><span class="security-shield" aria-hidden="true">◇</span></div>
+  <form id="securityForm" class="quick-add-form"><label class="sr-only" for="securityUrl">Endereço público para analisar a segurança</label><input id="securityUrl" type="url" required placeholder="https://exemplo.pt" aria-label="Endereço público para análise de segurança"><button class="primary" id="securityBtn" type="submit">◇ Analisar segurança</button></form>
+  <p id="securityError" class="error" role="alert"></p><p class="storage-hint">Uma verificação HTTP por análise · Sem scans de portas · Sem recolha de cookies · Relatório PDF gerado no teu browser</p>
+ </div>
+ <div id="securityResults" class="security-results" aria-live="polite"><div class="empty"><span class="empty-icon">◇</span>Introduz um website para avaliar a sua configuração HTTP.</div></div>
  <div class="panel padded ip-lookup-panel"><div class="section-header"><div><p class="eyebrow">IP LOOKUP</p><h2>Informação de um IP público</h2><p class="muted small">Consulta informativa de ASN, rede e organização. Não realiza ping, scans de portas nem pesquisa IPs pessoais.</p></div></div>
  <form id="ipLookupForm" class="quick-add-form"><label class="sr-only" for="ipLookupInput">Endereço IPv4 ou IPv6 público</label><input id="ipLookupInput" required maxlength="45" placeholder="1.1.1.1" aria-label="Endereço IPv4 ou IPv6 público"><button class="primary" id="ipLookupBtn" type="submit">Consultar IP</button></form>
  <p id="ipLookupError" class="error" role="alert"></p><div id="ipLookupResults" aria-live="polite"></div></div>
@@ -61,5 +67,5 @@
 </main></div>
 <dialog id="addDialog"><form id="addForm" class="dialog-content"><div class="dialog-head"><div><p class="eyebrow">NEW MONITOR</p><h2>Adicionar website</h2></div><button type="button" class="close" id="closeDialog" aria-label="Fechar">×</button></div><label for="monitorName">Nome <span class="muted">(opcional)</span></label><input id="monitorName" maxlength="60" placeholder="O meu website"><label for="monitorUrl">Endereço URL</label><input id="monitorUrl" type="url" required placeholder="https://exemplo.pt"><p class="small muted">São aceites URLs públicas HTTP e HTTPS, sem portas personalizadas.</p><p id="formError" class="error" role="alert"></p><button class="primary" type="submit">Adicionar monitor</button></form></dialog>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
-<script type="module" src="./app.js?v=7"></script>
+<script type="module" src="./app.js?v=8"></script>
 </body></html>

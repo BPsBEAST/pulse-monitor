@@ -258,3 +258,59 @@ dialog::backdrop{background:#040914c9}
  .page-head{flex-direction:column}.page-head .primary{width:100%}
 }
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+
+
+/* PULSE security diagnostics reuse the existing panel, form and typography system. */
+.security-workspace{margin:24px 0 16px;background:linear-gradient(125deg,#192c2a,var(--panel));border-color:#355846}
+.security-workspace h2{font-size:20px}
+.security-workspace .section-header{margin-bottom:18px}
+.security-workspace .muted{max-width:660px}
+.security-shield{border:1px solid #3f6347;border-radius:14px;padding:12px 18px;font-size:25px;color:#b9f98e;background:#223f33}
+.security-results{margin-bottom:22px}
+.security-report{border-color:#314358}
+.security-top{display:grid;grid-template-columns:170px minmax(0,1fr);gap:22px;align-items:center;margin-bottom:19px}
+.security-gauge{min-height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border-radius:15px;background:#172a2c;border:1px solid #416753}
+.security-gauge span{font-size:10px;font-weight:800;letter-spacing:1px;color:#a8bacb}
+.security-gauge strong{font-size:54px;line-height:1.1;letter-spacing:-2px}
+.security-gauge small{color:var(--secondary);font-size:11px}
+.security-gauge.safe strong,.security-rating.safe{color:#a6ed83}
+.security-gauge.caution strong{color:#f5d286}
+.security-gauge.risk strong{color:#ff9898}
+.security-headline{min-width:0}
+.security-headline h3{font-size:24px;margin:6px 0;overflow-wrap:anywhere}
+.security-headline p{margin:6px 0}
+.security-rating{font-size:16px;font-weight:750;color:#dff4e3}
+.security-legend{display:flex;flex-wrap:wrap;gap:12px;padding:13px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-size:11px;font-weight:750}
+.security-legend .safe{color:#a7ef91}.security-legend .caution{color:#f3cc7c}.security-legend .risk{color:#ff9e9e}
+.security-check-list{display:grid;gap:10px;margin:16px 0}
+.security-check{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 16px;border:1px solid #34445c;background:#1b2637;border-radius:12px;padding:15px}
+.security-check-main{display:flex;align-items:flex-start;gap:12px;min-width:0}
+.security-check-main strong{font-size:13px}
+.security-check-main p{margin:6px 0 0;line-height:1.55;overflow-wrap:anywhere}
+.security-check-icon{display:grid;place-items:center;flex-shrink:0;width:26px;height:26px;border-radius:8px;font-size:14px;font-weight:800}
+.security-check-icon.pass{color:#a8f18a;background:#254334}.security-check-icon.warning{color:#ffd48d;background:#493a2a}
+.security-check-icon.fail{color:#ff9999;background:#4e2c35}.security-check-icon.not_checked{color:#aebdd1;background:#2c394a}
+.security-check-aside{display:flex;flex-direction:column;align-items:flex-end;gap:7px;text-align:right}
+.security-check-status{font-size:10px;font-weight:750}
+.security-check-status.pass{color:#a8f18a}.security-check-status.warning{color:#ffd48d}
+.security-check-status.fail{color:#ff9999}.security-check-status.not_checked{color:#aebdd1}
+.security-remedy{grid-column:1/-1;margin:0 0 0 38px;font-size:11px;line-height:1.6;color:#b9cfdb}
+.security-remedy b{color:#dce6ef}
+.security-note{margin:15px 0;padding:15px;border-radius:10px;border:1px solid #625337;background:#382f2a}
+.security-note p{margin:5px 0 0;color:#efd4ae;font-size:12px}
+.security-report-footer{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;border-top:1px solid var(--line);padding-top:19px}
+.security-report-footer h3{font-size:14px;margin:0 0 9px}
+.security-limitations{padding-left:17px;margin:0;color:#9eaec4;font-size:11px;line-height:1.7}
+.security-export{flex-shrink:0}
+@media(max-width:650px){
+ .security-top{grid-template-columns:1fr;gap:15px}
+ .security-gauge{min-height:135px}
+ .security-gauge strong{font-size:45px}
+ .security-headline h3{font-size:19px}
+ .security-check{grid-template-columns:minmax(0,1fr);padding:12px}
+ .security-check-aside{flex-direction:row;align-items:center;justify-content:flex-start;padding-left:38px}
+ .security-remedy{margin-left:38px}
+ .security-report-footer{flex-direction:column;align-items:stretch}
+ .security-export{width:100%}
+ .security-shield{display:none}
+}

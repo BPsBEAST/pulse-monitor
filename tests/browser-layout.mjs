@@ -53,9 +53,32 @@ try{
   width:innerWidth
  }));
  assert.ok(layout.grid.split(" ").length===2,"Expected a 2-column desktop grid");
- assert.ok(layout.stylesheet.includes("styles.css?v=7"),"Stylesheet must be cache-busted");
+ assert.ok(layout.stylesheet.includes("styles.css?v=8"),"Stylesheet must be cache-busted");
  assert.ok(layout.scrollWidth<=layout.width+2,"No horizontal scroll on desktop");
  await desktop.screenshot({path:"artifacts/browser/pulse-desktop-1440.png",fullPage:true});
+ // Exercise the security UI and actual client-side PDF download without hitting public websites.
+ const report={
+  hostname:"example.com",protocol:"https",checkedAt:"2026-11-11T16:00:00Z",
+  http:{status:"online",code:200,ms:33},score:75,grade:"Bom",coverage:100,
+  checks:[{id:"https",name:"Ligação HTTPS",status:"pass",detail:"HTTPS observado.",recommendation:"Usar HTTPS.",weight:25},
+   {id:"csp",name:"Content Security Policy",status:"warning",detail:"Header ausente.",recommendation:"Definir política CSP.",weight:20}],
+  limitations:["Pontuação indicativa, não é auditoria de intrusão."]
+ };
+ await desktop.route("**/security?url=**",route=>route.fulfill({status:200,contentType:"application/json",
+  headers:{"access-control-allow-origin":"*"},body:JSON.stringify(report)}));
+ await desktop.locator('.nav[data-page="diagnostics"]').click();
+ await desktop.locator("#securityUrl").fill("https://example.com/");
+ await desktop.locator("#securityForm button[type='submit']").click();
+ await desktop.locator(".security-gauge strong").waitFor();
+ assert.equal(await desktop.locator(".security-gauge strong").innerText(),"75");
+ assert.equal(await desktop.locator(".security-check").count(),2);
+ const downloaded=desktop.waitForEvent("download");
+ await desktop.locator('[data-action="security-pdf"]').click();
+ const pdf=await downloaded;
+ assert.match(pdf.suggestedFilename(),/^pulse-security-example\.com-.*\.pdf$/);
+ await pdf.saveAs("artifacts/browser/pulse-security-test.pdf");
+ assert.equal((await readFile("artifacts/browser/pulse-security-test.pdf")).subarray(0,4).toString(),"%PDF");
+ await desktop.screenshot({path:"artifacts/browser/pulse-security-desktop.png",fullPage:true});
  await desktop.close();
  const mobile=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true});
  installErrors(mobile);

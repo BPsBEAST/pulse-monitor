@@ -121,22 +121,23 @@ async function ipOwnership(raw){
   registry:(parts[3]||"").slice(0,30),allocated:(parts[4]||"").slice(0,40),
   organization,source:"Team Cymru IP-to-ASN DNS (dados de encaminhamento BGP)"};
 }
-async function probeHttp(target,withHeaders=false){
+async function probeHttp(target,withHeaders=false,forSecurity=false){
  const started=Date.now();
  try{
-  const options={method:"HEAD",redirect:"manual",signal:AbortSignal.timeout(8000)};
+  const options={method:forSecurity?"GET":"HEAD",redirect:"manual",signal:AbortSignal.timeout(8000)};
   let res=await fetch(target.href,options);
   if([403,405,501].includes(res.status) || (res.status>=500&&res.status<600)){
    res=await fetch(target.href,{...options,method:"GET"});
    try{await res.body?.cancel()}catch{}
   }
+  if(forSecurity)try{await res.body?.cancel()}catch{}
   const code=res.status,ms=Date.now()-started;
   const status=code>=200&&code<300?"online":code>=500&&code<600?"offline":"unknown";
   const output={status,code,ms,checkedAt:new Date().toISOString()};
   if(withHeaders){
    const selected={};
-   for(const key of ["content-type","server","cache-control","content-length","strict-transport-security"]){
-    const value=res.headers.get(key);if(value)selected[key]=value.slice(0,150);
+   for(const key of (forSecurity?["content-type","strict-transport-security","content-security-policy","x-frame-options","x-content-type-options","referrer-policy","permissions-policy","cross-origin-opener-policy"]:["content-type","server","cache-control","content-length","strict-transport-security"])){
+    const value=res.headers.get(key);if(value)selected[key]=value.slice(0,forSecurity?1200:150);
    }
    output.headers=selected;
    // Do not follow redirects or return query strings that may contain tokens.
@@ -151,6 +152,78 @@ async function probeHttp(target,withHeaders=false){
   checkedAt:new Date().toISOString(),error:"Connection or timeout failure"}}
 }
 
+
+/**
+ * Passive security snapshot: one HTTP request to the user-supplied public URL,
+ * no redirects, brute-force, port scans, cookies, credentials or page parsing.
+ * A missing header is an observation, not proof of exploitation.
+ */
+function securityReport(target,http) {
+  const checkedAt=new Date().toISOString();
+  const report={
+    hostname:target.hostname,protocol:target.protocol.slice(0,-1),
+    checkedAt,http:{status:http.status,code:http.code,ms:http.ms,redirectHost:http.redirectHost||null},
+    score:null,coverage:0,grade:null,checks:[],
+    limitations:[
+      "Pontuação indicativa de configuração HTTP, não certificação nem teste de intrusão.",
+      "O Worker não revela a validade, emissor ou versão TLS do certificado remoto.",
+      "Não foram analisadas dependências, código, páginas autenticadas ou cookies de sessão.",
+      "Os cabeçalhos observados numa resposta podem diferir entre páginas ou utilizadores."
+    ]
+  };
+  if(http.status!=="online"){
+    report.reason=http.redirectHost
+      ?"O servidor redirecionou para outro endereço. Não seguimos redirecionamentos; analisa diretamente o URL HTTPS final."
+      :"Não foi possível obter uma resposta HTTP 2xx para uma análise fiável.";
+    return report;
+  }
+  const h=http.headers||{},c=report.checks;
+  const check=(id,name,status,detail,recommendation,weight)=>
+    c.push({id,name,status,detail,recommendation,weight});
+  const html=/(?:text\/html|application\/xhtml\+xml)/i.test(h["content-type"]||"");
+  const csp=h["content-security-policy"]||"";
+  const hsts=h["strict-transport-security"]||"";
+  const isHttps=target.protocol==="https:";
+  check("https","Ligação HTTPS",isHttps?"pass":"fail",
+    isHttps?"Ligação HTTPS estabelecida através do Worker.":"O website foi consultado por HTTP sem encriptação.",
+    "Disponibilizar o website através de HTTPS com um certificado válido.",25);
+  const maxAge=hsts.match(/(?:^|;)\s*max-age\s*=\s*(\d+)/i);
+  check("hsts","HTTP Strict Transport Security",
+    !isHttps?"not_checked":!hsts?"warning":maxAge&&Number(maxAge[1])>=15552000?"pass":"warning",
+    !isHttps?"Não aplicável à resposta HTTP.":hsts?"Política declarada: "+hsts.slice(0,150):"Cabeçalho HSTS ausente.",
+    "Configurar Strict-Transport-Security no HTTPS com max-age adequado após validar os subdomínios.",20);
+  check("csp","Content Security Policy",
+    !html?"not_checked":!csp?"warning":/\bunsafe-inline\b|\bunsafe-eval\b/i.test(csp)?"warning":"pass",
+    !html?"Não avaliado: resposta sem Content-Type HTML confirmado.":!csp?"Cabeçalho Content-Security-Policy ausente.":/\bunsafe-inline\b|\bunsafe-eval\b/i.test(csp)?"CSP encontrada, mas inclui exceções unsafe-inline/unsafe-eval.":"CSP presente sem exceções unsafe-inline/unsafe-eval detetadas.",
+    "Definir uma CSP específica para a aplicação, preferindo nonces ou hashes e evitando origens demasiado permissivas.",20);
+  const frameAncestors=/(?:^|;)\s*frame-ancestors\s+[^;]+/i.test(csp);
+  const xfo=(h["x-frame-options"]||"").trim().toUpperCase();
+  check("framing","Proteção contra clickjacking",
+    !html?"not_checked":frameAncestors||["DENY","SAMEORIGIN"].includes(xfo)?"pass":"warning",
+    !html?"Não avaliado: não foi confirmado conteúdo HTML.":frameAncestors?"Diretiva frame-ancestors presente na CSP.":xfo?"X-Frame-Options: "+xfo:"Sem frame-ancestors ou X-Frame-Options válido.",
+    "Adicionar frame-ancestors à CSP ou X-Frame-Options adequado.",10);
+  const nosniff=(h["x-content-type-options"]||"").trim().toLowerCase()==="nosniff";
+  check("nosniff","X-Content-Type-Options",nosniff?"pass":"warning",
+    nosniff?"Cabeçalho nosniff presente.":"Cabeçalho nosniff ausente ou inválido.",
+    "Definir X-Content-Type-Options: nosniff.",10);
+  const ref=(h["referrer-policy"]||"").toLowerCase().split(",").map(v=>v.trim()).filter(Boolean).at(-1);
+  check("referrer","Referrer-Policy",
+    !ref?"warning":["no-referrer","same-origin","strict-origin","strict-origin-when-cross-origin"].includes(ref)?"pass":"warning",
+    ref?"Política observada: "+ref:"Cabeçalho Referrer-Policy ausente.",
+    "Usar strict-origin-when-cross-origin ou uma política mais restritiva adequada.",10);
+  check("permissions","Permissions-Policy",!html?"not_checked":h["permissions-policy"]?"pass":"warning",
+    !html?"Não avaliado: não foi confirmado conteúdo HTML.":h["permissions-policy"]?"Cabeçalho Permissions-Policy presente.":"Cabeçalho Permissions-Policy ausente.",
+    "Definir permissões explícitas para recursos sensíveis como camera, microphone e geolocation.",5);
+  const total=c.filter(x=>x.status!=="not_checked").reduce((n,x)=>n+x.weight,0);
+  const earned=c.filter(x=>x.status==="pass").reduce((n,x)=>n+x.weight,0);
+  report.coverage=total;
+  if(total>=50){
+    report.score=Math.round(earned*100/total);
+    report.grade=report.score>=90?"Excelente":report.score>=75?"Bom":report.score>=50?"A melhorar":"Fraco";
+  }
+  return report;
+}
+
 export default {
   async fetch(request,env) {
     const origin=env.ALLOWED_ORIGIN||"null";
@@ -161,8 +234,8 @@ export default {
       "Access-Control-Allow-Headers":"Content-Type","Vary":"Origin"}});
     if(request.method!=="GET")return json({error:"Method not allowed"},405,origin);
     const incoming=new URL(request.url);
-    if(incoming.pathname==="/health")return json({service:"PULSE",version:"0.7",status:"ok"},200,origin);
-    if(!["/check","/diagnostics","/ip-info"].includes(incoming.pathname))return json({error:"Not found"},404,origin);
+    if(incoming.pathname==="/health")return json({service:"PULSE",version:"0.8",status:"ok"},200,origin);
+    if(!["/check","/diagnostics","/ip-info","/security"].includes(incoming.pathname))return json({error:"Not found"},404,origin);
     if(!env.CHECK_LIMITER)return json({error:"Rate limiter not configured"},503,origin);
     const client=request.headers.get("CF-Connecting-IP")||"unknown";
     const decision=await env.CHECK_LIMITER.limit({key:client});
@@ -180,8 +253,9 @@ export default {
     catch{return json({error:"Invalid public HTTP(S) URL"},400,origin)}
     let basic;
     try{basic=await dnsCheck(target.hostname)}
-    catch{return json({status:"unknown",code:null,ms:null,error:"DNS resolution failed or target rejected"},200,origin)}
+    catch{return incoming.pathname==="/security"?json({error:"O DNS não pôde ser validado ou o destino não é permitido para análise."},422,origin):json({status:"unknown",code:null,ms:null,error:"DNS resolution failed or target rejected"},200,origin)}
     if(incoming.pathname==="/check")return json(await probeHttp(target),200,origin);
+    if(incoming.pathname==="/security")return json(securityReport(target,await probeHttp(target,true,true)),200,origin);
     const [records,http]=await Promise.all([dnsDetails(target.hostname,basic),probeHttp(target,true)]);
     return json({
       hostname:target.hostname,protocol:target.protocol.slice(0,-1),
