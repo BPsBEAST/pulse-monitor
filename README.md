@@ -4,7 +4,7 @@ Free website monitoring without user accounts. Static GitHub Pages frontend + Cl
 
 **Frontend:** https://bpsbeast.github.io/pulse-monitor/  
 **Worker:** https://pulse-monitor.brunofranciscospinto.workers.dev  
-**Release:** v0.8 source (deploy do Worker necessário para o diagnóstico de segurança)
+**Release:** v0.8 · frontend e backend de segurança verificados em produção em 11/11/2026
 
 
 ## Segurança HTTP (v0.8)
@@ -21,9 +21,9 @@ Dentro de **Diagnóstico**, a área **Segurança HTTP** permite analisar a confi
 ### Deploy desta funcionalidade
 
 1. O GitHub Pages publica automaticamente a interface após merge em main.
-2. Publica manualmente a versão atualizada de worker/index.js com o Cloudflare Wrangler usando worker/wrangler.toml (npx wrangler deploy a partir da pasta worker). A publicação na Cloudflare não é feita automaticamente pelo workflow de Pages.
-3. Se o Worker ainda for antigo, o PULSE mostra uma mensagem explícita em vez de inventar uma pontuação. Confirma o endpoint /health com versão 0.8.
-4. Executa node --test tests/*.test.mjs e usa os testes Playwright do workflow .github/workflows/tests.yml. O projeto mantém os limites do plano gratuito sujeitos aos termos do fornecedor.
+2. **Estado confirmado (11/11/2026):** o Worker em produção respondeu com `/health` na versão **0.8**, e `/security` devolveu sete verificações e uma pontuação indicativa para `https://example.com/`. O workflow `Live PULSE Worker smoke test` verifica a publicação real; o workflow do GitHub Pages publica apenas o frontend. Para publicação manual de alterações futuras ao Worker, executar `npx wrangler deploy` na pasta `worker` com autorização Cloudflare.
+3. Se uma futura alteração ainda não tiver chegado ao Worker, o PULSE mostra uma mensagem explícita em vez de inventar uma pontuação. Confirma sempre `/health` e `/security` com o workflow de integração.
+4. Executa `node --test tests/*.test.mjs` e usa os testes Playwright do workflow `.github/workflows/tests.yml`. O workflow `.github/workflows/live-smoke.yml` também gera e valida um PDF real a partir de uma análise pública, disponibilizando-o como artefacto. O projeto mantém os limites do plano gratuito sujeitos aos termos do fornecedor.
 
 ## Adicionar um website (importante)
 
@@ -92,7 +92,7 @@ Run `node --check app.js`, `node --check pulse-core.mjs`, `node --check pulse-st
 - HTTP 5xx: offline signal.
 - Network timeout, DNS error, rejected URL or unsupported host: unknown.
 - Two consecutive offline signals open an incident, and two consecutive online signals confirm recovery.
-- Where HEAD is unsupported with 405/501, GET is attempted.
+- Where HEAD is rejected or returns 403, 405, 501 or 5xx, GET is attempted for **monitoring**; the **security** audit performs only one GET and does not retry redirects or failed results.
 
 ## Security and production limitations
 
@@ -105,4 +105,4 @@ Run `node --check app.js`, `node --check pulse-core.mjs`, `node --check pulse-st
 
 ## Status
 
-The GitHub code contains the redesigned dashboard, diagnostics and regression tests. Live production status needs a successful deployment and real-browser verification before declaring the feature complete.
+A versão v0.8 do frontend e o endpoint `/security` do Worker foram verificados em produção em 11/11/2026 com resultados de testes públicos reais. O relatório de segurança é pontual e indicativo. A monitorização 24/7, a análise avançada de TLS e a proteção completa contra DNS rebinding continuam fora do âmbito da versão atual.
