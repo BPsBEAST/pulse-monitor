@@ -2,12 +2,14 @@ import {DEFAULT_API,EMPTY,normalizeUrl,registerMonitor,applyCheck,summary,hydrat
 import {initializeStorage,saveState} from "./pulse-storage.mjs?v=7";
 import {latencySvg,chartModel} from "./pulse-viz.mjs?v=7";
 import {diagnosticsHtml,ipInfoHtml} from "./pulse-diagnostics.mjs";
+import {securityHtml} from "./pulse-security.mjs";
+import {downloadSecurityPdf} from "./pulse-security-pdf.mjs";
 const $=id=>document.getElementById(id);
 const esc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const when=t=>Number.isFinite(t)?new Date(t).toLocaleString("pt-PT",{dateStyle:"short",timeStyle:"short"}):"Nunca";
 let state=EMPTY(),page="overview",editingId=null,queue=Promise.resolve(),timer=null,toastTimer=null;
 const inFlight=new Set();
-let graphPeriod=86400000,searchTerm="",diagnosing=false;
+let graphPeriod=86400000,searchTerm="",diagnosing=false,securityRunning=false,latestSecurityReport=null;
 let ready=false;
 // O campo técnico aceita apenas Workers. URLs comuns pertencem aos monitores.
 function isWorkerAddress(value){
@@ -62,7 +64,7 @@ function label(m){
 }
 function monitorHtml(m){
  const [cls,text]=label(m);
- return '<div class="monitor"><div class="monitor-main"><div class="site-avatar">◉</div><div class="site-details"><strong>'+esc(m.name||new URL(m.url).hostname)+'</strong><small>'+esc(m.url)+'</small><small>Última verificação: '+when(m.checkedAt)+'</small>'+(m.lastError?'<small class="monitor-error">'+esc(m.lastError)+'</small>':"")+'</div></div><div class="monitor-right"><span class="status '+cls+'">'+text+(m.status==="online"&&Number.isFinite(m.ms)?" · "+m.ms+" ms":"")+'</span><div class="monitor-actions"><button class="mini-btn" data-action="check" data-id="'+esc(m.id)+'" title="Verificar agora" '+(inFlight.has(m.id)?"disabled":"")+'>↻ Verificar</button> <button class="mini-btn" data-action="pause" data-id="'+esc(m.id)+'">'+(m.paused?"Retomar":"Pausar")+'</button> <button class="mini-btn diag-action" data-action="diagnose" data-id="'+esc(m.id)+'">⌘ Diagnóstico</button> <button class="mini-btn" data-action="external" data-id="'+esc(m.id)+'">Check-Host ↗</button> <button class="mini-btn" data-action="edit" data-id="'+esc(m.id)+'">Editar</button> <button class="mini-btn danger" data-action="delete" data-id="'+esc(m.id)+'" aria-label="Eliminar website">×</button></div></div></div>';
+ return '<div class="monitor"><div class="monitor-main"><div class="site-avatar">◉</div><div class="site-details"><strong>'+esc(m.name||new URL(m.url).hostname)+'</strong><small>'+esc(m.url)+'</small><small>Última verificação: '+when(m.checkedAt)+'</small>'+(m.lastError?'<small class="monitor-error">'+esc(m.lastError)+'</small>':"")+'</div></div><div class="monitor-right"><span class="status '+cls+'">'+text+(m.status==="online"&&Number.isFinite(m.ms)?" · "+m.ms+" ms":"")+'</span><div class="monitor-actions"><button class="mini-btn" data-action="check" data-id="'+esc(m.id)+'" title="Verificar agora" '+(inFlight.has(m.id)?"disabled":"")+'>↻ Verificar</button> <button class="mini-btn" data-action="pause" data-id="'+esc(m.id)+'">'+(m.paused?"Retomar":"Pausar")+'</button> <button class="mini-btn diag-action" data-action="diagnose" data-id="'+esc(m.id)+'">⌘ Diagnóstico</button> <button class="mini-btn diag-action" data-action="security" data-id="'+esc(m.id)+'">◇ Segurança</button> <button class="mini-btn" data-action="external" data-id="'+esc(m.id)+'">Check-Host ↗</button> <button class="mini-btn" data-action="edit" data-id="'+esc(m.id)+'">Editar</button> <button class="mini-btn danger" data-action="delete" data-id="'+esc(m.id)+'" aria-label="Eliminar website">×</button></div></div></div>';
 }
 const empty=text=>'<div class="empty"><span class="empty-icon">◎</span>'+esc(text)+'</div>';
 const emptyMonitors=()=>'<div class="monitor-empty"><div class="empty-symbol">◉</div><h3>Ainda não tens websites</h3><p>Adiciona o teu primeiro website para começares a acompanhar a disponibilidade e a latência.</p><button type="button" class="subtle" data-action="add-empty">＋ Adicionar website</button></div>';
@@ -214,6 +216,7 @@ async function runDiagnostics(input){
  try{url=normalizeUrl(input)}catch(error){$("diagnosticError").textContent=error.message;return}
  diagnosing=true;
  $("diagnosticError").textContent="";
+ $("securityUrl").value=url;
  $("diagnosticResults").innerHTML='<div class="panel padded diagnostic-loading"><span class="loading-pulse">◉</span> A consultar DNS e resposta HTTP...</div>';
  $("diagnoseBtn").disabled=true;
  const controller=new AbortController();
@@ -232,6 +235,33 @@ async function runDiagnostics(input){
 $("diagnosticForm").addEventListener("submit",event=>{
  event.preventDefault();
  void runDiagnostics($("diagnosticUrl").value.trim());
+});
+
+async function runSecurity(input){
+ if(securityRunning)return;
+ let url;
+ try{url=normalizeUrl(input)}catch(error){$("securityError").textContent=error.message;return}
+ if(!state.api){$("securityError").textContent="Configura o servidor PULSE nas Definições.";return}
+ securityRunning=true;latestSecurityReport=null;
+ $("securityError").textContent="";
+ $("securityResults").innerHTML='<div class="panel padded diagnostic-loading"><span class="loading-pulse">◉</span> A verificar configurações HTTPS e cabeçalhos de segurança...</div>';
+ $("securityBtn").disabled=true;
+ const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),16000);
+ try{
+  const response=await fetch(state.api+"/security?url="+encodeURIComponent(url),{signal:controller.signal,headers:{Accept:"application/json"}});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw Error(response.status===404?"O Worker ainda não tem a nova ferramenta de segurança. É necessário publicar a nova versão na Cloudflare.":response.status===429?"Limite de verificações atingido. Tenta novamente mais tarde.":data.error||"Erro HTTP "+response.status);
+  if(typeof data.hostname!=="string"||!Array.isArray(data.checks))throw Error(data.error||"O backend não devolveu uma análise de segurança válida.");
+  latestSecurityReport=data;
+  $("securityResults").innerHTML=securityHtml(data);
+ }catch(error){
+  $("securityError").textContent=error.name==="AbortError"?"A análise excedeu o tempo limite.":error.message;
+  $("securityResults").innerHTML='<div class="panel padded"><p class="muted">Não existem verificações de segurança concluídas.</p></div>';
+ }finally{clearTimeout(timeout);securityRunning=false;$("securityBtn").disabled=false}
+}
+$("securityForm").addEventListener("submit",event=>{
+ event.preventDefault();
+ void runSecurity($("securityUrl").value);
 });
 async function runIpLookup(ip){
  const input=String(ip||"").trim();
@@ -255,6 +285,11 @@ $("ipLookupForm").addEventListener("submit",event=>{
  void runIpLookup($("ipLookupInput").value);
 });
 document.addEventListener("click",async e=>{
+ if(e.target.closest('[data-action="security-pdf"]')){
+  if(!latestSecurityReport){toast("Faz uma análise de segurança antes de exportar.");return}
+  try{downloadSecurityPdf(latestSecurityReport)}catch(error){toast("Não foi possível criar o PDF: "+error.message)}
+  return;
+ }
  const periodBtn=e.target.closest("[data-period]");
  if(periodBtn){graphPeriod=Number(periodBtn.dataset.period)||86400000;render();return}
  const btn=e.target.closest("[data-action]");if(!btn)return;
@@ -262,6 +297,7 @@ document.addEventListener("click",async e=>{
  const m=state.monitors.find(x=>x.id===btn.dataset.id);if(!m)return;
  if(btn.dataset.action==="check")return void checkOne(m.id,{manual:true});
  if(btn.dataset.action==="diagnose"){$("diagnosticUrl").value=m.url;navigate("diagnostics");return void runDiagnostics(m.url)}
+ if(btn.dataset.action==="security"){$("securityUrl").value=m.url;navigate("diagnostics");return void runSecurity(m.url)}
  if(btn.dataset.action==="edit")return openDialog(m);
  if(btn.dataset.action==="delete")return void removeMonitor(m);
  if(btn.dataset.action==="external")return window.open("https://check-host.net/check-http?host="+encodeURIComponent(m.url),"_blank","noopener,noreferrer");
